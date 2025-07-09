@@ -13,7 +13,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #00C17E 0%, #FFC52B 100%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -39,7 +39,7 @@
         }
 
         .tense-indicator {
-            color: #667eea;
+            color: #006853;
             font-size: 1.2em;
             margin-bottom: 30px;
             font-weight: 600;
@@ -72,11 +72,11 @@
 
         input[type="url"]:focus, input[type="number"]:focus, select:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #00C17E;
         }
 
         .btn {
-            background: linear-gradient(45deg, #667eea, #764ba2);
+            background: linear-gradient(45deg, #00C17E, #FFC52B);
             color: white;
             border: none;
             padding: 15px 30px;
@@ -125,12 +125,12 @@
         }
 
         .pronoun {
-            color: #667eea;
+            color: #006853;
             font-weight: bold;
         }
 
         .verb-base {
-            color: #764ba2;
+            color: #981426;
             font-weight: bold;
         }
 
@@ -186,7 +186,7 @@
         }
 
         .loading {
-            color: #667eea;
+            color: #006853;
             font-style: italic;
         }
 
@@ -207,6 +207,27 @@
             border: 1px solid #ffeaa7;
         }
 
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: #fff3cd;
+            color: #856404;
+            padding: 30px 30px 20px 30px;
+            border-radius: 12px;
+            border: 1px solid #ffeaa7;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            text-align: center;
+            min-width: 280px;
+        }
+
         @media (max-width: 480px) {
             .container {
                 padding: 20px;
@@ -225,13 +246,15 @@
 </head>
 <body>
     <div class="container">
-        <h1>English Verb Conjugator</h1>
-        
+        <h1 style="color: #006853;">English Verb Conjugator</h1>
+        <h2>v1.0</h2>
+        <br>
+
         <!-- Main Menu -->
         <div id="mainMenu" class="menu-section">
             <div class="input-group">
-                <label for="sheetUrl">Google Sheets URL (published as CSV):</label>
-                <input type="url" id="sheetUrl" placeholder="https://docs.google.com/spreadsheets/d/...">
+                <label for="sheetUrl">Google Sheets URL:</label>
+                <input type="url" id="sheetUrl" placeholder="paste your published CSV URL here...">
             </div>
             
             <div class="input-group">
@@ -260,8 +283,7 @@
         <!-- Quiz Section -->
         <div id="quizSection" class="quiz-container">
             <div class="tense-indicator" id="currentTense"></div>
-            <button class="btn btn-back" onclick="showQuitWarning()">← Back to Main Menu</button>
-            
+                        
             <div id="quitWarning" class="quit-warning" style="display: none;">
                 <p>Are you sure you want to quit? Your progress will be lost.</p>
                 <button class="btn btn-secondary" onclick="quitQuiz()">Yes, Quit</button>
@@ -274,6 +296,17 @@
             <button class="btn" onclick="checkAnswer()">Submit Answer</button>
             <button class="btn" onclick="nextQuestion()" id="nextBtn" style="display: none;">Next Question</button>
             <div id="feedback" class="feedback" style="display: none;"></div>
+
+            <button class="btn btn-back" onclick="showQuitWarning()">← Back to Main Menu</button>
+        </div>       
+
+            <!-- Modal Overlay for Quit Warning -->
+        <div id="quitWarningOverlay" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <p>Are you sure you want to quit? Your progress will be lost.</p>
+                <button class="btn btn-secondary" onclick="quitQuiz()">Yes, Quit</button>
+                <button class="btn" onclick="hideQuitWarning()">Continue Quiz</button>
+            </div>
         </div>
 
         <!-- Results Section -->
@@ -316,16 +349,16 @@
         };
 
         function conjugateVerb(verb, pronoun, tense) {
-            const base = verb.base || verb.infinitive || verb.present || '';
-            const past = verb.past || verb.past_simple || '';
-            const pastParticiple = verb.past_participle || verb.pp || '';
-            const presentParticiple = verb.present_participle || verb.ing || (base + 'ing');
+            const base = verb.base || verb.Infinitive || verb.present || '';
+            const past = verb.past || verb['past simple'] || '';
+            const pastParticiple = verb['past participle'] || verb.pp || '';
+            const presentParticiple = verb['present participle'] || verb.ing || (base + 'ing');
 
             // Handle irregular verbs by checking if specific forms exist
             switch (tense) {
                 case 'present':
                     if (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') {
-                        return verb.present_third || verb.he_she_it || (base + 's');
+                        return verb['present third'] || (base + 's');
                     }
                     return base;
 
@@ -465,11 +498,12 @@
         }
 
         function showQuestion() {
+            document.getElementById('answerInput').disabled = false; //
             const question = currentQuiz[currentQuestionIndex];
             const verbBase = question.verb.base || question.verb.infinitive || question.verb.present || '';
             
             document.getElementById('questionCounter').textContent = `Question ${currentQuestionIndex + 1} of ${totalQuestions}`;
-            document.getElementById('question').innerHTML = `<span class="pronoun">${question.pronoun}</span> <span class="verb-base">${verbBase}</span>`;
+            document.getElementById('question').innerHTML = `<span class="pronoun">${question.pronoun}</span> <span class="verb-base">(${verbBase})</span>`;
             document.getElementById('answerInput').value = '';
             document.getElementById('answerInput').focus();
             document.getElementById('feedback').style.display = 'none';
@@ -534,14 +568,15 @@
         }
 
         function showQuitWarning() {
-            document.getElementById('quitWarning').style.display = 'block';
+            document.getElementById('quitWarningOverlay').style.display = 'flex';
         }
 
         function hideQuitWarning() {
-            document.getElementById('quitWarning').style.display = 'none';
+            document.getElementById('quitWarningOverlay').style.display = 'none';
         }
 
         function quitQuiz() {
+            hideQuitWarning();
             backToMenu();
         }
 
