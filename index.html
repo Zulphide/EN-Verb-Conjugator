@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Verb Conjugator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        .tense-indicator {
+            color: #667eea;
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+
+        .menu-section {
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+            text-align: left;
+        }
+
+        input[type="url"], input[type="number"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="url"]:focus, input[type="number"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #f44336;
+        }
+
+        .btn-back {
+            background: #ff9800;
+            margin-bottom: 20px;
+        }
+
+        .quiz-container {
+            display: none;
+        }
+
+        .question-counter {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+        }
+
+        .question {
+            font-size: 1.5em;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .pronoun {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .verb-base {
+            color: #764ba2;
+            font-weight: bold;
+        }
+
+        .answer-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 18px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .feedback {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .feedback.correct {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .feedback.incorrect {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .results-container {
+            display: none;
+        }
+
+        .score {
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .score.excellent {
+            color: #28a745;
+        }
+
+        .score.good {
+            color: #ffc107;
+        }
+
+        .score.needs-improvement {
+            color: #dc3545;
+        }
+
+        .loading {
+            color: #667eea;
+            font-style: italic;
+        }
+
+        .error {
+            color: #f44336;
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .quit-warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #ffeaa7;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .btn {
+                padding: 12px 25px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>English Verb Conjugator</h1>
+        
+        <!-- Main Menu -->
+        <div id="mainMenu" class="menu-section">
+            <div class="input-group">
+                <label for="sheetUrl">Google Sheets URL (published as CSV):</label>
+                <input type="url" id="sheetUrl" placeholder="https://docs.google.com/spreadsheets/d/...">
+            </div>
+            
+            <div class="input-group">
+                <label for="tenseSelect">Select Tense:</label>
+                <select id="tenseSelect">
+                    <option value="present">Present Simple</option>
+                    <option value="past">Past Simple</option>
+                    <option value="future">Future Simple</option>
+                    <option value="present_continuous">Present Continuous</option>
+                    <option value="past_continuous">Past Continuous</option>
+                    <option value="present_perfect">Present Perfect</option>
+                    <option value="past_perfect">Past Perfect</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label for="questionCount">Number of Questions:</label>
+                <input type="number" id="questionCount" min="1" max="50" value="10">
+            </div>
+            
+            <button class="btn" onclick="startQuiz()">Start Quiz</button>
+            <div id="loadingMessage" class="loading" style="display: none;">Loading verbs...</div>
+            <div id="errorMessage" class="error" style="display: none;"></div>
+        </div>
+
+        <!-- Quiz Section -->
+        <div id="quizSection" class="quiz-container">
+            <div class="tense-indicator" id="currentTense"></div>
+            <button class="btn btn-back" onclick="showQuitWarning()">← Back to Main Menu</button>
+            
+            <div id="quitWarning" class="quit-warning" style="display: none;">
+                <p>Are you sure you want to quit? Your progress will be lost.</p>
+                <button class="btn btn-secondary" onclick="quitQuiz()">Yes, Quit</button>
+                <button class="btn" onclick="hideQuitWarning()">Continue Quiz</button>
+            </div>
+            
+            <div class="question-counter" id="questionCounter"></div>
+            <div class="question" id="question"></div>
+            <input type="text" id="answerInput" class="answer-input" placeholder="Enter your answer...">
+            <button class="btn" onclick="checkAnswer()">Submit Answer</button>
+            <button class="btn" onclick="nextQuestion()" id="nextBtn" style="display: none;">Next Question</button>
+            <div id="feedback" class="feedback" style="display: none;"></div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="results-container">
+            <div class="tense-indicator" id="resultsTense"></div>
+            <h2>Quiz Complete!</h2>
+            <div class="score" id="finalScore"></div>
+            <div id="scoreMessage"></div>
+            <button class="btn" onclick="backToMenu()">Back to Main Menu</button>
+        </div>
+    </div>
+
+    <script>
+        let verbs = [];
+        let currentQuiz = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let currentTense = 'present';
+        let totalQuestions = 10;
+        let currentAnswer = '';
+
+        const pronouns = {
+            present: ['I', 'You', 'He', 'She', 'It', 'We', 'They'],
+            past: ['I', 'You', 'He', 'She', 'It', 'We', 'They'],
+            future: ['I', 'You', 'He', 'She', 'It', 'We', 'They'],
+            present_continuous: ['I', 'You', 'He', 'She', 'It', 'We', 'They'],
+            past_continuous: ['I', 'You', 'He', 'She', 'It', 'We', 'They'],
+            present_perfect: ['I', 'You', 'He', 'She', 'It', 'We', 'They'],
+            past_perfect: ['I', 'You', 'He', 'She', 'It', 'We', 'They']
+        };
+
+        const tenseNames = {
+            present: 'Present Simple',
+            past: 'Past Simple',
+            future: 'Future Simple',
+            present_continuous: 'Present Continuous',
+            past_continuous: 'Past Continuous',
+            present_perfect: 'Present Perfect',
+            past_perfect: 'Past Perfect'
+        };
+
+        function conjugateVerb(verb, pronoun, tense) {
+            const base = verb.base || verb.infinitive || verb.present || '';
+            const past = verb.past || verb.past_simple || '';
+            const pastParticiple = verb.past_participle || verb.pp || '';
+            const presentParticiple = verb.present_participle || verb.ing || (base + 'ing');
+
+            // Handle irregular verbs by checking if specific forms exist
+            switch (tense) {
+                case 'present':
+                    if (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') {
+                        return verb.present_third || verb.he_she_it || (base + 's');
+                    }
+                    return base;
+
+                case 'past':
+                    return past || (base + 'ed');
+
+                case 'future':
+                    return 'will ' + base;
+
+                case 'present_continuous':
+                    const bePresent = (pronoun === 'I') ? 'am' : 
+                                    (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'is' : 'are';
+                    return bePresent + ' ' + presentParticiple;
+
+                case 'past_continuous':
+                    const bePast = (pronoun === 'I' || pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'was' : 'were';
+                    return bePast + ' ' + presentParticiple;
+
+                case 'present_perfect':
+                    const havePresent = (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'has' : 'have';
+                    return havePresent + ' ' + (pastParticiple || past || (base + 'ed'));
+
+                case 'past_perfect':
+                    return 'had ' + (pastParticiple || past || (base + 'ed'));
+
+                default:
+                    return base;
+            }
+        }
+
+        async function loadVerbs() {
+            const url = document.getElementById('sheetUrl').value.trim();
+            if (!url) {
+                showError('Please enter a Google Sheets URL');
+                return false;
+            }
+
+            try {
+                document.getElementById('loadingMessage').style.display = 'block';
+                document.getElementById('errorMessage').style.display = 'none';
+
+                // Convert Google Sheets URL to CSV export URL
+                let csvUrl = url;
+                if (url.includes('/edit')) {
+                    csvUrl = url.replace('/edit#gid=', '/export?format=csv&gid=');
+                    csvUrl = csvUrl.replace('/edit', '/export?format=csv');
+                }
+
+                const response = await fetch(csvUrl);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch data from Google Sheets');
+                }
+
+                const csvText = await response.text();
+                const lines = csvText.split('\n');
+                
+                if (lines.length < 2) {
+                    throw new Error('Sheet must have at least a header row and one data row');
+                }
+
+                // Parse CSV header
+                const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+                
+                // Parse data rows
+                verbs = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+                    
+                    const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+                    const verbObj = {};
+                    
+                    headers.forEach((header, index) => {
+                        if (values[index]) {
+                            verbObj[header.toLowerCase()] = values[index];
+                        }
+                    });
+                    
+                    // Ensure we have at least a base form
+                    if (verbObj.base || verbObj.infinitive || verbObj.present || verbObj.verb) {
+                        if (!verbObj.base) {
+                            verbObj.base = verbObj.infinitive || verbObj.present || verbObj.verb;
+                        }
+                        verbs.push(verbObj);
+                    }
+                }
+
+                if (verbs.length === 0) {
+                    throw new Error('No valid verbs found in the sheet');
+                }
+
+                document.getElementById('loadingMessage').style.display = 'none';
+                return true;
+
+            } catch (error) {
+                document.getElementById('loadingMessage').style.display = 'none';
+                showError('Error loading verbs: ' + error.message);
+                return false;
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        async function startQuiz() {
+            if (verbs.length === 0) {
+                const loaded = await loadVerbs();
+                if (!loaded) return;
+            }
+
+            currentTense = document.getElementById('tenseSelect').value;
+            totalQuestions = parseInt(document.getElementById('questionCount').value) || 10;
+            
+            // Generate quiz questions
+            currentQuiz = [];
+            for (let i = 0; i < totalQuestions; i++) {
+                const randomVerb = verbs[Math.floor(Math.random() * verbs.length)];
+                const randomPronoun = pronouns[currentTense][Math.floor(Math.random() * pronouns[currentTense].length)];
+                currentQuiz.push({
+                    verb: randomVerb,
+                    pronoun: randomPronoun,
+                    answer: conjugateVerb(randomVerb, randomPronoun, currentTense)
+                });
+            }
+
+            currentQuestionIndex = 0;
+            score = 0;
+            
+            document.getElementById('mainMenu').style.display = 'none';
+            document.getElementById('quizSection').style.display = 'block';
+            document.getElementById('currentTense').textContent = 'Current Tense: ' + tenseNames[currentTense];
+            
+            showQuestion();
+        }
+
+        function showQuestion() {
+            const question = currentQuiz[currentQuestionIndex];
+            const verbBase = question.verb.base || question.verb.infinitive || question.verb.present || '';
+            
+            document.getElementById('questionCounter').textContent = `Question ${currentQuestionIndex + 1} of ${totalQuestions}`;
+            document.getElementById('question').innerHTML = `<span class="pronoun">${question.pronoun}</span> <span class="verb-base">${verbBase}</span>`;
+            document.getElementById('answerInput').value = '';
+            document.getElementById('answerInput').focus();
+            document.getElementById('feedback').style.display = 'none';
+            document.getElementById('nextBtn').style.display = 'none';
+            
+            currentAnswer = question.answer;
+        }
+
+        function checkAnswer() {
+            const userAnswer = document.getElementById('answerInput').value.trim().toLowerCase();
+            const correctAnswer = currentAnswer.toLowerCase();
+            
+            const feedback = document.getElementById('feedback');
+            
+            if (userAnswer === correctAnswer) {
+                score++;
+                feedback.textContent = 'Correct!';
+                feedback.className = 'feedback correct';
+            } else {
+                feedback.textContent = `Incorrect. The correct answer is: ${currentAnswer}`;
+                feedback.className = 'feedback incorrect';
+            }
+            
+            feedback.style.display = 'block';
+            document.getElementById('nextBtn').style.display = 'inline-block';
+            document.getElementById('answerInput').disabled = true;
+        }
+
+        function nextQuestion() {
+            document.getElementById('answerInput').disabled = false;
+            currentQuestionIndex++;
+            
+            if (currentQuestionIndex < totalQuestions) {
+                showQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        function showResults() {
+            document.getElementById('quizSection').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'block';
+            document.getElementById('resultsTense').textContent = 'Completed Tense: ' + tenseNames[currentTense];
+            
+            const percentage = Math.round((score / totalQuestions) * 100);
+            const scoreDiv = document.getElementById('finalScore');
+            scoreDiv.textContent = `${score} / ${totalQuestions} (${percentage}%)`;
+            
+            let message = '';
+            if (percentage >= 90) {
+                scoreDiv.className = 'score excellent';
+                message = 'Excellent work! You have mastered this tense.';
+            } else if (percentage >= 70) {
+                scoreDiv.className = 'score good';
+                message = 'Good job! Keep practicing to improve further.';
+            } else {
+                scoreDiv.className = 'score needs-improvement';
+                message = 'Keep practicing! You\'ll get better with time.';
+            }
+            
+            document.getElementById('scoreMessage').textContent = message;
+        }
+
+        function showQuitWarning() {
+            document.getElementById('quitWarning').style.display = 'block';
+        }
+
+        function hideQuitWarning() {
+            document.getElementById('quitWarning').style.display = 'none';
+        }
+
+        function quitQuiz() {
+            backToMenu();
+        }
+
+        function backToMenu() {
+            document.getElementById('quizSection').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('mainMenu').style.display = 'block';
+            document.getElementById('quitWarning').style.display = 'none';
+            
+            // Reset quiz state
+            currentQuiz = [];
+            currentQuestionIndex = 0;
+            score = 0;
+        }
+
+        // Allow Enter key to submit answers
+        document.getElementById('answerInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !document.getElementById('answerInput').disabled) {
+                checkAnswer();
+            }
+        });
+
+        // Auto-focus on answer input when next question loads
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('answerInput').focus();
+        });
+    </script>
+</body>
+</html>
