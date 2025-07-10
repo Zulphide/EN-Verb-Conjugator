@@ -299,7 +299,7 @@
             <div class="question-counter" id="questionCounter"></div>
             <div class="question" id="question"></div>
             <input type="text" id="answerInput" class="answer-input" placeholder="Enter your answer...">
-            <button class="btn" onclick="checkAnswer()">Submit Answer</button>
+            <button class="btn" id="submitBtn" onclick="checkAnswer()">Submit Answer</button>
             <button class="btn" onclick="nextQuestion()" id="nextBtn" style="display: none;">Next Question</button>
             <div id="feedback" class="feedback" style="display: none;"></div>
 
@@ -532,7 +532,9 @@
             document.getElementById('answerInput').focus();
             document.getElementById('feedback').style.display = 'none';
             document.getElementById('nextBtn').style.display = 'none';
-            
+            // Reset submit button state
+            document.getElementById('submitBtn').disabled = true;
+            // Store the correct answer for later checking
             currentAnswer = question.answer;
         }
 
@@ -541,16 +543,30 @@
             const correctAnswer = currentAnswer.toLowerCase();
             
             const feedback = document.getElementById('feedback');
-            
+            let feedbackMsg = '';
             if (userAnswer === correctAnswer) {
                 score++;
-                feedback.textContent = 'Correct!';
+                feedbackMsg = 'Correct! Want to know more?';
                 feedback.className = 'feedback correct';
             } else {
-                feedback.textContent = `Incorrect. The correct answer is: ${currentAnswer}`;
+                feedbackMsg = `Incorrect. The correct answer is: ${currentAnswer}`;
                 feedback.className = 'feedback incorrect';
             }
-            
+
+            //info button for the current verb
+            const question = currentQuiz[currentQuestionIndex];
+            const infinitive = question.verb.infinitive || question.verb.base || question.verb.present || '';
+            const infoUrl = `https://conjugator.reverso.net/conjugation-english-verb-${encodeURIComponent(infinitive.toLowerCase())}.html`;
+            feedback.innerHTML = `
+                ${feedbackMsg}
+                <button 
+                    onclick="window.open('${infoUrl}', '_blank')" 
+                    title="See more conjugations"
+                    style="background:none;border:none;cursor:pointer;padding:0 0 0 8px;vertical-align:middle;">
+                    <span style="font-size:1.5em; color:#006853;">&#9432;</span>
+                </button>
+            `;
+
             feedback.style.display = 'block';
             document.getElementById('nextBtn').style.display = 'inline-block';
             document.getElementById('answerInput').disabled = true;
@@ -638,6 +654,17 @@
             const emojis = ['📚', '📝', '🔤', '✏️', '🎲', '🧠', '💡', '🎓', '🤓', '🔎', '🦉', '📖', '🚀', '🌟', '💬'];
             const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
             document.getElementById('emojiHeading').textContent = 'v1.0 ' + randomEmoji;
+        });
+
+        // Enable/disable submit button based on input
+        document.addEventListener('DOMContentLoaded', function() {
+            const answerInput = document.getElementById('answerInput');
+            const submitBtn = document.getElementById('submitBtn');
+            function toggleSubmitBtn() {
+                submitBtn.disabled = answerInput.value.trim() === '';
+            }
+            answerInput.addEventListener('input', toggleSubmitBtn);
+            toggleSubmitBtn(); // Set initial state
         });
 
     </script>
