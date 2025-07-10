@@ -247,15 +247,21 @@
 <body>
     <div class="container">
         <h1 style="color: #006853;">English Verb Conjugator</h1>
-        <h2>v1.0</h2>
+        <h2 id="emojiHeading"></h2>
         <br>
 
         <!-- Main Menu -->
         <div id="mainMenu" class="menu-section">
             <div class="input-group">
-                <label for="sheetUrl">Google Sheets URL:</label>
-                <input type="url" id="sheetUrl" placeholder="paste your published CSV URL here...">
+                <label>
+                    <input type="checkbox" id="useDefaultUrl" onchange="toggleSheetUrlInput()" checked>
+                    Use Default Sheet
+                </label>
             </div>
+        <div class="input-group" id="sheetUrlGroup">
+            <label for="sheetUrl">Google Sheets URL:</label>
+            <input type="url" id="sheetUrl" placeholder="paste your published CSV URL here...">
+        </div>
             
             <div class="input-group">
                 <label for="tenseSelect">Select Tense:</label>
@@ -272,7 +278,7 @@
             
             <div class="input-group">
                 <label for="questionCount">Number of Questions:</label>
-                <input type="number" id="questionCount" min="1" max="50" value="10">
+                <input type="number" id="questionCount" min="1" max="50" value="20">
             </div>
             
             <button class="btn" onclick="startQuiz()">Start Quiz</button>
@@ -347,6 +353,24 @@
             present_perfect: 'Present Perfect',
             past_perfect: 'Past Perfect'
         };
+
+        const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?output=csv";
+
+        function toggleSheetUrlInput() {
+            const useDefault = document.getElementById('useDefaultUrl').checked;
+            const sheetUrlInput = document.getElementById('sheetUrl');
+            const sheetUrlGroup = document.getElementById('sheetUrlGroup');
+            if (useDefault) {
+                sheetUrlInput.value = DEFAULT_SHEET_URL;
+                sheetUrlInput.disabled = true;
+                sheetUrlGroup.style.display = 'none';
+            } else {
+                sheetUrlInput.disabled = false;
+                sheetUrlInput.value = '';
+                sheetUrlGroup.style.display = '';
+            }
+        }
+
 
         function conjugateVerb(verb, pronoun, tense) {
             const base = verb.base || verb.Infinitive || verb.present || '';
@@ -592,6 +616,11 @@
             score = 0;
         }
 
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleSheetUrlInput();
+        });
+
         // Allow Enter key to submit answers
         document.getElementById('answerInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && !document.getElementById('answerInput').disabled) {
@@ -603,6 +632,14 @@
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('answerInput').focus();
         });
+
+        //random emoji for h2 heading
+        document.addEventListener('DOMContentLoaded', function() {
+            const emojis = ['📚', '📝', '🔤', '✏️', '🎲', '🧠', '💡', '🎓', '🤓', '🔎', '🦉', '📖', '🚀', '🌟', '💬'];
+            const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+            document.getElementById('emojiHeading').textContent = 'v1.0 ' + randomEmoji;
+        });
+
     </script>
 </body>
 </html>
