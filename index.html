@@ -228,6 +228,22 @@
             min-width: 280px;
         }
 
+        /* thin progress bar (fits current color scheme) */
+        .progress-bar {
+            height: 8px;
+            background: #eef9f2;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 12px;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+        }
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #00C17E 0%, #FFC52B 100%);
+            transition: width 300ms ease;
+        }
+
         @media (max-width: 480px) {
             .container {
                 padding: 20px;
@@ -246,26 +262,27 @@
 </head>
 <body>
     <div class="container">
-        <h1 style="color: #006853;">English Verb Conjugator</h1>
-        <h2 id="emojiHeading"></h2>
-        <br>
-
-        <!-- Main Menu -->
+        <div id="appHeader">
+            <h1 id="appTitle" style="color: #006853;">English Verb Conjugator</h1>
+            <h2 id="emojiHeading"></h2>
+        </div>
+ 
+         <!-- Main Menu -->
         <div id="mainMenu" class="menu-section">
             <div class="input-group">
-                <label for="useDefaultUrl">Select Sheet:</label>
-                <select id="useDefaultUrl" onchange="toggleSheetUrlInput()">
-                    <option value="default">Mrs. Liu 905</option>
-                    <option value="custom">Custom URL</option>
+                <label for="sheetSelect">Choose Your Class:</label>
+                <select id="sheetSelect" onchange="onSheetSelectChange()">
+                    <option value="https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?output=csv" selected>Mrs. Liu 905</option>
+                    <option value="custom">Custom URL...</option>
                 </select>
-            </div>
-        <div class="input-group" id="sheetUrlGroup">
+             </div>
+        <div class="input-group" id="sheetUrlGroup" style="display:none;">
             <label for="sheetUrl">Google Sheets URL:</label>
             <input type="url" id="sheetUrl" placeholder="paste your published CSV URL here...">
         </div>
             
             <div class="input-group">
-                <label for="tenseSelect">Select Tense:</label>
+                <label for="tenseSelect">Choose a Tense:</label>
                 <select id="tenseSelect">
                     <option value="present">Present Simple</option>
                     <option value="past">Past Simple</option>
@@ -291,26 +308,30 @@
         <div id="quizSection" class="quiz-container">
             <div class="tense-indicator" id="currentTense"></div>
                         
-            <div id="quitWarning" class="quit-warning" style="display: none;">
-                <p>Are you sure you want to quit? Your progress will be lost.</p>
-                <button class="btn btn-secondary" onclick="quitQuiz()">Yes, Quit</button>
-                <button class="btn" onclick="hideQuitWarning()">Continue Quiz</button>
-            </div>
+             <div id="quitWarning" class="quit-warning" style="display: none;">
+                 <p>Are you sure? Current progress will be lost.</p>
+                 <button class="btn btn-secondary" onclick="quitQuiz()">Yes, Quit</button>
+                 <button class="btn" onclick="hideQuitWarning()">Continue Quiz</button>
+             </div>
             
             <div class="question-counter" id="questionCounter"></div>
-            <div class="question" id="question"></div>
-            <input type="text" id="answerInput" class="answer-input" placeholder="Enter your answer...">
-            <button class="btn" id="submitBtn" onclick="checkAnswer()">Submit Answer</button>
-            <button class="btn" onclick="nextQuestion()" id="nextBtn" style="display: none;">Next Question</button>
-            <div id="feedback" class="feedback" style="display: none;"></div>
-
-            <button class="btn btn-back" onclick="showQuitWarning()">← Back to Main Menu</button>
-        </div>       
+            <!-- thin progress bar showing current progress (moved below question counter) -->
+            <div class="progress-bar" aria-hidden="true">
+                <div id="progressFill" class="progress-fill" style="width:0%"></div>
+            </div>
+             <div class="question" id="question"></div>
+             <input type="text" id="answerInput" class="answer-input" placeholder="Enter your answer...">
+             <button class="btn" id="submitBtn" onclick="checkAnswer()">Submit Answer</button>
+             <button class="btn" onclick="nextQuestion()" id="nextBtn" style="display: none;">Next Question</button>
+             <div id="feedback" class="feedback" style="display: none;"></div>
+ 
+             <button class="btn btn-back" onclick="showQuitWarning()">← Back to Main Menu</button>
+         </div>       
 
             <!-- Modal Overlay for Quit Warning -->
         <div id="quitWarningOverlay" class="modal-overlay" style="display: none;">
             <div class="modal-content">
-                <p>Are you sure you want to quit? Your progress will be lost.</p>
+                <p>Are you sure? Current progress will be lost.</p>
                 <button class="btn btn-secondary" onclick="quitQuiz()">Yes, Quit</button>
                 <button class="btn" onclick="hideQuitWarning()">Continue Quiz</button>
             </div>
@@ -357,22 +378,19 @@
 
         const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?output=csv";
 
-        function toggleSheetUrlInput() {
-            const select = document.getElementById('useDefaultUrl');
-            const useDefault = select && select.value === 'default';
+        function onSheetSelectChange() {
+            const sheetSelect = document.getElementById('sheetSelect');
             const sheetUrlInput = document.getElementById('sheetUrl');
             const sheetUrlGroup = document.getElementById('sheetUrlGroup');
-            if (useDefault) {
-                sheetUrlInput.value = DEFAULT_SHEET_URL;
+            const val = sheetSelect.value;
+            if (val === 'custom') {
+                sheetUrlInput.value = '';
+                sheetUrlInput.disabled = false;
+                sheetUrlGroup.style.display = '';
+            } else {
+                sheetUrlInput.value = val || DEFAULT_SHEET_URL;
                 sheetUrlInput.disabled = true;
                 sheetUrlGroup.style.display = 'none';
-            } else {
-                sheetUrlInput.disabled = false;
-                // keep existing value if user previously entered one, otherwise clear
-                if (!sheetUrlInput.value || sheetUrlInput.value === DEFAULT_SHEET_URL) {
-                    sheetUrlInput.value = '';
-                }
-                sheetUrlGroup.style.display = '';
             }
         }
 
@@ -542,7 +560,7 @@
 
             currentTense = document.getElementById('tenseSelect').value;
             totalQuestions = parseInt(document.getElementById('questionCount').value) || 10;
-            
+
             // Generate quiz questions
             currentQuiz = [];
             for (let i = 0; i < totalQuestions; i++) {
@@ -557,29 +575,41 @@
 
             currentQuestionIndex = 0;
             score = 0;
-            
+
+            // hide app header while in quiz
+            document.getElementById('appHeader').style.display = 'none';
+
             document.getElementById('mainMenu').style.display = 'none';
             document.getElementById('quizSection').style.display = 'block';
             document.getElementById('currentTense').textContent = 'Current Tense: ' + tenseNames[currentTense];
-            
+
+            // reset progress bar
+            const pf = document.getElementById('progressFill');
+            if (pf) pf.style.width = '0%';
+
             showQuestion();
         }
 
         function showQuestion() {
-            document.getElementById('answerInput').disabled = false; //
+            document.getElementById('answerInput').disabled = false;
             const question = currentQuiz[currentQuestionIndex];
             const verbBase = question.verb.base || question.verb.infinitive || question.verb.present || '';
-            
+
             document.getElementById('questionCounter').textContent = `Question ${currentQuestionIndex + 1} of ${totalQuestions}`;
             document.getElementById('question').innerHTML = `<span class="pronoun">${question.pronoun}</span> <span class="verb-base">(${verbBase})</span>`;
             document.getElementById('answerInput').value = '';
             document.getElementById('answerInput').focus();
             document.getElementById('feedback').style.display = 'none';
             document.getElementById('nextBtn').style.display = 'none';
-            // Reset submit button state
             document.getElementById('submitBtn').disabled = true;
-            // Store the correct answer for later checking
             currentAnswer = question.answer;
+
+            // update progress bar: completed questions proportion
+            const pf = document.getElementById('progressFill');
+            if (pf && totalQuestions > 0) {
+                const percent = Math.round((currentQuestionIndex / totalQuestions) * 100);
+                pf.style.width = percent + '%';
+            }
         }
 
         function checkAnswer() {
@@ -639,6 +669,9 @@
         }
 
         function showResults() {
+            // keep header hidden on results (only show on main menu)
+            document.getElementById('appHeader').style.display = 'none';
+
             document.getElementById('quizSection').style.display = 'none';
             document.getElementById('resultsSection').style.display = 'block';
             document.getElementById('resultsTense').textContent = 'Completed Tense: ' + tenseNames[currentTense];
@@ -660,6 +693,10 @@
             }
             
             document.getElementById('scoreMessage').textContent = message;
+
+            // fill progress bar to 100% on completion (if still visible)
+            const pf = document.getElementById('progressFill');
+            if (pf) pf.style.width = '100%';
         }
 
         function showQuitWarning() {
@@ -676,6 +713,9 @@
         }
 
         function backToMenu() {
+            // show header when returning to main menu
+            document.getElementById('appHeader').style.display = 'block';
+
             document.getElementById('quizSection').style.display = 'none';
             document.getElementById('resultsSection').style.display = 'none';
             document.getElementById('mainMenu').style.display = 'block';
@@ -689,8 +729,8 @@
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
-            toggleSheetUrlInput();
-        });
+            onSheetSelectChange();
+         });
 
         // Allow Enter key to submit answers
         document.getElementById('answerInput').addEventListener('keypress', function(e) {
