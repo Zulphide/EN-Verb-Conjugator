@@ -253,10 +253,11 @@
         <!-- Main Menu -->
         <div id="mainMenu" class="menu-section">
             <div class="input-group">
-                <label>
-                    <input type="checkbox" id="useDefaultUrl" onchange="toggleSheetUrlInput()" checked>
-                    Use Default Sheet
-                </label>
+                <label for="useDefaultUrl">Select Sheet:</label>
+                <select id="useDefaultUrl" onchange="toggleSheetUrlInput()">
+                    <option value="default">Mrs. Liu 905</option>
+                    <option value="custom">Custom URL</option>
+                </select>
             </div>
         <div class="input-group" id="sheetUrlGroup">
             <label for="sheetUrl">Google Sheets URL:</label>
@@ -357,7 +358,8 @@
         const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?output=csv";
 
         function toggleSheetUrlInput() {
-            const useDefault = document.getElementById('useDefaultUrl').checked;
+            const select = document.getElementById('useDefaultUrl');
+            const useDefault = select && select.value === 'default';
             const sheetUrlInput = document.getElementById('sheetUrl');
             const sheetUrlGroup = document.getElementById('sheetUrlGroup');
             if (useDefault) {
@@ -366,7 +368,10 @@
                 sheetUrlGroup.style.display = 'none';
             } else {
                 sheetUrlInput.disabled = false;
-                sheetUrlInput.value = '';
+                // keep existing value if user previously entered one, otherwise clear
+                if (!sheetUrlInput.value || sheetUrlInput.value === DEFAULT_SHEET_URL) {
+                    sheetUrlInput.value = '';
+                }
                 sheetUrlGroup.style.display = '';
             }
         }
