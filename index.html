@@ -373,43 +373,82 @@
 
 
         function conjugateVerb(verb, pronoun, tense) {
-            const base = verb.base || verb.Infinitive || verb.present || '';
-            const past = verb.past || verb['past simple'] || '';
-            const pastParticiple = verb['past participle'] || verb.pp || '';
-            const presentParticiple = verb['present participle'] || verb.ing || (base + 'ing');
+            // normalize base (remove leading "to " if present) and common forms
+            const rawBase = verb.base || verb.infinitive || verb.present || '';
+            const base = String(rawBase).trim().replace(/^to\s+/i, ''); // <-- strip leading "to "
+            const baseLower = base.toLowerCase();
 
-            // Handle irregular verbs by checking if specific forms exist
+            const past = verb.past || verb['past simple'] || verb.past_simple || '';
+            const pastParticiple = verb['past participle'] || verb.pp || verb.past_participle || '';
+            const presentParticiple = verb['present participle'] || verb.ing || verb.present_participle || (base + 'ing');
+
+            // helper for sheet-provided variants (headers were lowercased when parsed)
+            const presentThird = verb['present third'] || verb.present_third || verb['presentthird'] || verb.he_she_it || '';
+
+            // Special handling for "be" verb (works even if sheet had "to be")
+            if (baseLower === 'be') {
+                switch (tense) {
+                    case 'present':
+                        if (pronoun === 'I') return 'am';
+                        if (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') return 'is';
+                        return 'are';
+                    case 'past':
+                        if (pronoun === 'I' || pronoun === 'He' || pronoun === 'She' || pronoun === 'It') return 'was';
+                        return 'were';
+                    case 'future':
+                        return 'will be';
+                    case 'present_continuous':
+                        const bePresent = (pronoun === 'I') ? 'am' :
+                                          (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'is' : 'are';
+                        return bePresent + ' ' + presentParticiple;
+                    case 'past_continuous':
+                        const bePast = (pronoun === 'I' || pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'was' : 'were';
+                        return bePast + ' ' + presentParticiple;
+                    case 'present_perfect':
+                        const havePresent = (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'has' : 'have';
+                        return havePresent + ' been';
+                    case 'past_perfect':
+                        return 'had been';
+                    default:
+                        return base;
+                }
+            }
+
+            // Handle other irregular verbs / tenses
             switch (tense) {
                 case 'present':
                     if (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') {
-                        return verb['present third'] || (base + 's');
+                        return presentThird || thirdPersonForm(base);
                     }
                     return base;
-
                 case 'past':
                     return past || (base + 'ed');
-
                 case 'future':
                     return 'will ' + base;
-
                 case 'present_continuous':
-                    const bePresent = (pronoun === 'I') ? 'am' : 
-                                    (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'is' : 'are';
-                    return bePresent + ' ' + presentParticiple;
-
+                    const beP = (pronoun === 'I') ? 'am' :
+                                (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'is' : 'are';
+                    return beP + ' ' + presentParticiple;
                 case 'past_continuous':
-                    const bePast = (pronoun === 'I' || pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'was' : 'were';
-                    return bePast + ' ' + presentParticiple;
-
+                    const bePa = (pronoun === 'I' || pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'was' : 'were';
+                    return bePa + ' ' + presentParticiple;
                 case 'present_perfect':
-                    const havePresent = (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'has' : 'have';
-                    return havePresent + ' ' + (pastParticiple || past || (base + 'ed'));
-
+                    const haveP = (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'has' : 'have';
+                    return haveP + ' ' + (pastParticiple || past || (base + 'ed'));
                 case 'past_perfect':
                     return 'had ' + (pastParticiple || past || (base + 'ed'));
-
                 default:
                     return base;
+            }
+
+            // small helper for generating 3rd person when sheet doesn't provide it
+            function thirdPersonForm(b) {
+                if (!b) return '';
+                const lower = b.toLowerCase();
+                if (/[sxz]$/.test(lower) || /(sh|ch)$/.test(lower)) return b + 'es';
+                if (/[aeiou]y$/.test(lower)) return b + 's';
+                if (/y$/.test(lower)) return b.slice(0, -1) + 'ies';
+                return b + 's';
             }
         }
 
@@ -546,11 +585,22 @@
             let feedbackMsg = '';
             if (userAnswer === correctAnswer) {
                 score++;
-                feedbackMsg = 'Correct! Want to know more?';
+                feedbackMsg = '✅ Want to learn more?';
                 feedback.className = 'feedback correct';
+                // Only disable input and show Next button if answer is CORRECT
+                document.getElementById('answerInput').disabled = true;
+                document.getElementById('submitBtn').disabled = true;
+                document.getElementById('nextBtn').style.display = 'inline-block';
             } else {
-                feedbackMsg = `Incorrect. The correct answer is: ${currentAnswer}`;
+                feedbackMsg = `❌ The answer is: <strong>${currentAnswer}</strong>`;
                 feedback.className = 'feedback incorrect';
+                // Keep input enabled so user can try again
+                const answerInput = document.getElementById('answerInput');
+                answerInput.disabled = false;
+                answerInput.focus();
+                answerInput.select(); // Select the text so user can easily retype
+                document.getElementById('submitBtn').disabled = true;
+                document.getElementById('nextBtn').style.display = 'none';
             }
 
             //info button for the current verb
