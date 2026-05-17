@@ -272,8 +272,8 @@
             <div class="input-group">
                 <label for="sheetSelect">Choose Your Class:</label>
                 <select id="sheetSelect" onchange="onSheetSelectChange()">
-                    <option value="https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?output=csv" selected>Mrs. Liu 905</option>
-                    <option value="PLACEHOLDER_URL">Class #2 (Placeholder)</option>
+                    <option value="https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?gid=0&single=true&output=csv" selected>905</option>
+                    <option value="https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?gid=370366080&single=true&output=csv" selected>906</option>
                     <option value="custom">Custom URL...</option>
                 </select>
              </div>
@@ -285,11 +285,11 @@
             <div class="input-group">
                 <label for="tenseSelect">Choose a Tense:</label>
                 <select id="tenseSelect">
-                    <option value="present">Present Simple</option>
-                    <option value="past">Past Simple</option>
-                    <option value="future">Future Simple</option>
-                    <option value="present_continuous">Present Continuous</option>
-                    <option value="past_continuous">Past Continuous</option>
+                    <option value="present">Present Tense</option>
+                    <option value="past">Past Tense</option>
+                    <option value="future">Future Tense</option>
+                    <option value="present_continuous">Present Progressive</option>
+                    <option value="past_continuous">Past Progressive</option>
                     <option value="present_perfect">Present Perfect</option>
                     <option value="past_perfect">Past Perfect</option>
                 </select>
@@ -368,16 +368,16 @@
         };
 
         const tenseNames = {
-            present: 'Present Simple',
-            past: 'Past Simple',
-            future: 'Future Simple',
-            present_continuous: 'Present Continuous',
-            past_continuous: 'Past Continuous',
+            present: 'Present Tense',
+            past: 'Past Tense',
+            future: 'Future Tense',
+            present_continuous: 'Present Progressive',
+            past_continuous: 'Past Progressive',
             present_perfect: 'Present Perfect',
             past_perfect: 'Past Perfect'
         };
 
-        const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?output=csv";
+        const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?gid=0&single=true&output=csv";
 
         function onSheetSelectChange() {
             const sheetSelect = document.getElementById('sheetSelect');
