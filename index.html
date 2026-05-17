@@ -321,7 +321,7 @@
                 <div id="progressFill" class="progress-fill" style="width:0%"></div>
             </div>
              <div class="question" id="question"></div>
-             <input type="text" id="answerInput" class="answer-input" placeholder="Enter your answer...">
+             <input type="text" id="answerInput" class="answer-input" placeholder="Enter the full sentence (start uppercase, end with a period).">
              <button class="btn" id="submitBtn" onclick="checkAnswer()">Submit Answer</button>
              <button class="btn" onclick="nextQuestion()" id="nextBtn" style="display: none;">Next Question</button>
              <div id="feedback" class="feedback" style="display: none;"></div>
@@ -613,34 +613,68 @@
             }
         }
 
+        function normalizeSentence(sentence) {
+            return sentence.trim().replace(/\s+/g, ' ');
+        }
+
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function getExpectedFullSentence(question) {
+            return `${question.pronoun} ${question.answer}.`;
+        }
+
+        function isFullSentenceAnswer(answer, expected) {
+            const trimmed = answer.trim();
+            return /^[A-Z]/.test(trimmed) && trimmed.endsWith('.') && normalizeSentence(trimmed) === normalizeSentence(expected);
+        }
+
+        function isConjugationCorrect(answer, question) {
+            const normalized = normalizeSentence(answer.toLowerCase()).replace(/\.$/, '');
+            const expectedPhrase = question.answer.toLowerCase();
+            const phraseRegex = new RegExp(`\\b${escapeRegExp(expectedPhrase)}\\b`, 'i');
+            return phraseRegex.test(normalized);
+        }
+
         function checkAnswer() {
-            const userAnswer = document.getElementById('answerInput').value.trim().toLowerCase();
-            const correctAnswer = currentAnswer.toLowerCase();
-            
+            const rawAnswer = document.getElementById('answerInput').value;
+            const trimmedAnswer = rawAnswer.trim();
+            const question = currentQuiz[currentQuestionIndex];
+            const expectedFullAnswer = getExpectedFullSentence(question);
+
             const feedback = document.getElementById('feedback');
             let feedbackMsg = '';
-            if (userAnswer === correctAnswer) {
+            let isCorrect = false;
+
+            if (isFullSentenceAnswer(trimmedAnswer, expectedFullAnswer)) {
                 score++;
+                isCorrect = true;
                 feedbackMsg = '✅ Want to learn more?';
                 feedback.className = 'feedback correct';
-                // Only disable input and show Next button if answer is CORRECT
                 document.getElementById('answerInput').disabled = true;
                 document.getElementById('submitBtn').disabled = true;
                 document.getElementById('nextBtn').style.display = 'inline-block';
-            } else {
-                feedbackMsg = `❌ The answer is: <strong>${currentAnswer}</strong>`;
+            } else if (isConjugationCorrect(trimmedAnswer, question)) {
+                feedbackMsg = 'Write the full sentence.';
                 feedback.className = 'feedback incorrect';
-                // Keep input enabled so user can try again
                 const answerInput = document.getElementById('answerInput');
                 answerInput.disabled = false;
                 answerInput.focus();
-                answerInput.select(); // Select the text so user can easily retype
+                answerInput.select();
+                document.getElementById('submitBtn').disabled = true;
+                document.getElementById('nextBtn').style.display = 'none';
+            } else {
+                feedbackMsg = `Incorrect verb, the answer is: <strong>${expectedFullAnswer}</strong>`;
+                feedback.className = 'feedback incorrect';
+                const answerInput = document.getElementById('answerInput');
+                answerInput.disabled = false;
+                answerInput.focus();
+                answerInput.select();
                 document.getElementById('submitBtn').disabled = true;
                 document.getElementById('nextBtn').style.display = 'none';
             }
 
-            //info button for the current verb
-            const question = currentQuiz[currentQuestionIndex];
             const infinitive = question.verb.infinitive || question.verb.base || question.verb.present || '';
             const infoUrl = `https://conjugator.reverso.net/conjugation-english-verb-${encodeURIComponent(infinitive.toLowerCase())}.html`;
             feedback.innerHTML = `
@@ -654,8 +688,9 @@
             `;
 
             feedback.style.display = 'block';
-            document.getElementById('nextBtn').style.display = 'inline-block';
-            document.getElementById('answerInput').disabled = true;
+            if (!isCorrect) {
+                document.getElementById('answerInput').disabled = false;
+            }
         }
 
         function nextQuestion() {
@@ -749,7 +784,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             const emojis = ['📚', '📝', '🔤', '✏️', '🎲', '🧠', '💡', '🎓', '🤓', '🔎', '🦉', '📖', '🚀', '🌟', '💬'];
             const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-            document.getElementById('emojiHeading').textContent = 'v1.1 ' + randomEmoji;
+            document.getElementById('emojiHeading').textContent = 'v1.2 ' + randomEmoji;
         });
 
         // Enable/disable submit button based on input
