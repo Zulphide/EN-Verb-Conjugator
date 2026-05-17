@@ -656,7 +656,7 @@
                 document.getElementById('submitBtn').disabled = true;
                 document.getElementById('nextBtn').style.display = 'inline-block';
             } else if (isConjugationCorrect(trimmedAnswer, question)) {
-                feedbackMsg = 'Write the full sentence.';
+                feedbackMsg = expectedFullAnswer;
                 feedback.className = 'feedback incorrect';
                 const answerInput = document.getElementById('answerInput');
                 answerInput.disabled = false;
@@ -665,7 +665,7 @@
                 document.getElementById('submitBtn').disabled = true;
                 document.getElementById('nextBtn').style.display = 'none';
             } else {
-                feedbackMsg = `Incorrect verb, the answer is: <strong>${expectedFullAnswer}</strong>`;
+                feedbackMsg = expectedFullAnswer;
                 feedback.className = 'feedback incorrect';
                 const answerInput = document.getElementById('answerInput');
                 answerInput.disabled = false;
