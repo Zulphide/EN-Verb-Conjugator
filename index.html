@@ -244,6 +244,78 @@
             transition: width 300ms ease;
         }
 
+        .recent-scores,
+        .missed-verbs {
+            text-align: left;
+            margin-top: 18px;
+        }
+
+        .score-list,
+        .missed-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0 0;
+        }
+
+        .score-item,
+        .missed-item {
+            background: #f7f7f7;
+            border: 1px solid #eaeaea;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+            color: #333;
+        }
+
+        .score-item strong,
+        .missed-item strong {
+            color: #006853;
+        }
+
+        .score-item small,
+        .missed-item small {
+            color: #666;
+        }
+
+        .results-summary {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin: 22px 0 18px;
+        }
+
+        .summary-card {
+            background: #f9f9f9;
+            border: 1px solid #e8e8e8;
+            border-radius: 12px;
+            padding: 14px 12px;
+            text-align: center;
+        }
+
+        .summary-card .label {
+            display: block;
+            font-size: 0.8em;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .summary-card .value {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #006853;
+        }
+
+        .summary-card .value.warning {
+            color: #b86200;
+        }
+
+        .summary-card .value.danger {
+            color: #b3261e;
+        }
+
         @media (max-width: 480px) {
             .container {
                 padding: 20px;
@@ -299,6 +371,8 @@
                 <label for="questionCount">Number of Questions:</label>
                 <input type="number" id="questionCount" min="1" max="50" value="20">
             </div>
+
+            <div id="recentScores" class="recent-scores" aria-live="polite"></div>
             
             <button class="btn" onclick="startQuiz()">Start Quiz</button>
             <div id="loadingMessage" class="loading" style="display: none;">Loading verbs...</div>
@@ -343,7 +417,9 @@
             <div class="tense-indicator" id="resultsTense"></div>
             <h2>Quiz Complete!</h2>
             <div class="score" id="finalScore"></div>
+            <div id="resultsSummary" class="results-summary" aria-live="polite"></div>
             <div id="scoreMessage"></div>
+            <div id="missedVerbsContainer" class="missed-verbs" style="display: none;"></div>
             <button class="btn" onclick="backToMenu()">Back to Main Menu</button>
         </div>
     </div>
@@ -356,6 +432,8 @@
         let currentTense = 'present';
         let totalQuestions = 10;
         let currentAnswer = '';
+        let missedQuestions = [];
+        const RECENT_SCORES_KEY = 'enVerbConjugatorRecentScores';
 
         const pronouns = {
             present: ['I', 'You', 'He', 'She', 'It', 'We', 'They'],
@@ -378,6 +456,76 @@
         };
 
         const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?gid=0&single=true&output=csv";
+
+        function normalizeHeader(value) {
+            return String(value || '')
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, ' ')
+                .trim();
+        }
+
+        function parseCsvText(csvText) {
+            if (!csvText) return [];
+
+            const rows = [];
+            let currentRow = [];
+            let currentCell = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < csvText.length; i++) {
+                const char = csvText[i];
+                const nextChar = csvText[i + 1];
+
+                if (char === '"') {
+                    if (inQuotes && nextChar === '"') {
+                        currentCell += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    currentRow.push(currentCell);
+                    currentCell = '';
+                } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                    if (char === '\r' && nextChar === '\n') {
+                        i++;
+                    }
+                    currentRow.push(currentCell);
+                    if (currentRow.some(cell => String(cell).trim() !== '')) {
+                        rows.push(currentRow);
+                    }
+                    currentRow = [];
+                    currentCell = '';
+                } else {
+                    currentCell += char;
+                }
+            }
+
+            if (currentCell.length > 0 || currentRow.length > 0) {
+                currentRow.push(currentCell);
+                if (currentRow.some(cell => String(cell).trim() !== '')) {
+                    rows.push(currentRow);
+                }
+            }
+
+            return rows;
+        }
+
+        function getVerbValue(verbObj, candidates) {
+            const normalized = {};
+            Object.keys(verbObj).forEach(key => {
+                normalized[normalizeHeader(key)] = verbObj[key];
+            });
+
+            for (const candidate of candidates) {
+                const loweredCandidate = normalizeHeader(candidate);
+                if (normalized[loweredCandidate] !== undefined) {
+                    return normalized[loweredCandidate];
+                }
+            }
+            return '';
+        }
 
         function onSheetSelectChange() {
             const sheetSelect = document.getElementById('sheetSelect');
@@ -487,11 +635,10 @@
                 document.getElementById('loadingMessage').style.display = 'block';
                 document.getElementById('errorMessage').style.display = 'none';
 
-                // Convert Google Sheets URL to CSV export URL
                 let csvUrl = url;
                 if (url.includes('/edit')) {
                     csvUrl = url.replace('/edit#gid=', '/export?format=csv&gid=');
-                    csvUrl = csvUrl.replace('/edit', '/export?format=csv');
+                    csvUrl = url.includes('/edit#') ? url.replace('/edit#gid=', '/export?format=csv&gid=') : url.replace('/edit', '/export?format=csv');
                 }
 
                 const response = await fetch(csvUrl);
@@ -500,36 +647,36 @@
                 }
 
                 const csvText = await response.text();
-                const lines = csvText.split('\n');
-                
-                if (lines.length < 2) {
+                const rows = parseCsvText(csvText);
+                if (rows.length < 2) {
                     throw new Error('Sheet must have at least a header row and one data row');
                 }
 
-                // Parse CSV header
-                const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-                
-                // Parse data rows
+                const headers = rows[0].map(header => String(header).trim());
                 verbs = [];
-                for (let i = 1; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    if (!line) continue;
-                    
-                    const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+
+                for (let i = 1; i < rows.length; i++) {
+                    const values = rows[i];
                     const verbObj = {};
-                    
+
                     headers.forEach((header, index) => {
-                        if (values[index]) {
-                            verbObj[header.toLowerCase()] = values[index];
+                        const rawValue = values[index] || '';
+                        const cleanedValue = String(rawValue).trim();
+                        if (cleanedValue) {
+                            verbObj[header] = cleanedValue;
                         }
                     });
-                    
-                    // Ensure we have at least a base form
-                    if (verbObj.base || verbObj.infinitive || verbObj.present || verbObj.verb) {
-                        if (!verbObj.base) {
-                            verbObj.base = verbObj.infinitive || verbObj.present || verbObj.verb;
-                        }
-                        verbs.push(verbObj);
+
+                    const baseValue = getVerbValue(verbObj, ['base', 'infinitive', 'present', 'verb', 'word', 'english verb']);
+                    const normalizedBase = String(baseValue || '').trim();
+
+                    if (normalizedBase) {
+                        const canonicalVerb = { ...verbObj };
+                        canonicalVerb.base = canonicalVerb.base || normalizedBase;
+                        canonicalVerb.infinitive = canonicalVerb.infinitive || normalizedBase;
+                        canonicalVerb.present = canonicalVerb.present || normalizedBase;
+                        canonicalVerb.verb = canonicalVerb.verb || normalizedBase;
+                        verbs.push(canonicalVerb);
                     }
                 }
 
@@ -553,6 +700,113 @@
             errorDiv.style.display = 'block';
         }
 
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function loadRecentScores() {
+            try {
+                const raw = localStorage.getItem(RECENT_SCORES_KEY);
+                return raw ? JSON.parse(raw) : [];
+            } catch (error) {
+                return [];
+            }
+        }
+
+        function saveRecentScore(entry) {
+            try {
+                const recentScores = loadRecentScores();
+                recentScores.unshift(entry);
+                const trimmedScores = recentScores.slice(0, 5);
+                localStorage.setItem(RECENT_SCORES_KEY, JSON.stringify(trimmedScores));
+            } catch (error) {
+                // Ignore storage failures so the app keeps working when browser storage is unavailable.
+            }
+            renderRecentScores();
+        }
+
+        function renderRecentScores() {
+            const container = document.getElementById('recentScores');
+            if (!container) return;
+
+            const recentScores = loadRecentScores();
+            if (!recentScores.length) {
+                container.innerHTML = '<div class="score-item"><strong>Recent scores</strong><br><small>No recent scores yet.</small></div>';
+                return;
+            }
+
+            const html = recentScores.map((scoreEntry) => {
+                const dateLabel = new Date(scoreEntry.timestamp).toLocaleDateString([], {
+                    month: 'short',
+                    day: 'numeric'
+                });
+                return `
+                    <div class="score-item">
+                        <strong>${escapeHtml(scoreEntry.score)} / ${escapeHtml(scoreEntry.total)}</strong>
+                        <br>
+                        <small>${escapeHtml(scoreEntry.tenseLabel)} • ${escapeHtml(dateLabel)}</small>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `<strong>Recent scores</strong>${html}`;
+        }
+
+        function renderResultsSummary() {
+            const container = document.getElementById('resultsSummary');
+            if (!container) return;
+
+            const correctAnswers = score;
+            const incorrectAnswers = Math.max(totalQuestions - score, 0);
+            const missedCount = missedQuestions.length;
+            const accuracy = totalQuestions ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+
+            const cards = [
+                { label: 'Correct', value: `${correctAnswers}/${totalQuestions}`, className: 'value' },
+                { label: 'Accuracy', value: `${accuracy}%`, className: accuracy >= 70 ? 'value' : accuracy >= 40 ? 'value warning' : 'value danger' },
+                { label: 'Missed', value: String(missedCount), className: missedCount === 0 ? 'value' : 'value warning' },
+                { label: 'Review focus', value: missedCount === 0 ? 'Great job' : `${missedCount} verbs`, className: missedCount === 0 ? 'value' : 'value danger' }
+            ];
+
+            container.innerHTML = cards.map((card) => `
+                <div class="summary-card">
+                    <span class="label">${card.label}</span>
+                    <span class="${card.className}">${card.value}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderMissedQuestions() {
+            const container = document.getElementById('missedVerbsContainer');
+            if (!container) return;
+
+            if (!missedQuestions.length) {
+                container.style.display = 'none';
+                container.innerHTML = '';
+                return;
+            }
+
+            const listHtml = missedQuestions.map((item) => {
+                const infinitive = item.verbBase || 'verb';
+                const infoUrl = `https://conjugator.reverso.net/conjugation-english-verb-${encodeURIComponent(infinitive.toLowerCase())}.html`;
+                return `
+                    <li class="missed-item">
+                        <strong>${escapeHtml(item.pronoun)} ${escapeHtml(item.verbBase)}</strong>
+                        <div><small>Correct: ${escapeHtml(item.answer)}</small></div>
+                        <div><small><a href="${infoUrl}" target="_blank" rel="noopener noreferrer">Review this verb</a></small></div>
+                    </li>
+                `;
+            }).join('');
+
+            container.innerHTML = `<strong>Missed verbs</strong><ul class="missed-list">${listHtml}</ul>`;
+            container.style.display = 'block';
+        }
+
         async function startQuiz() {
             if (verbs.length === 0) {
                 const loaded = await loadVerbs();
@@ -561,11 +815,19 @@
 
             currentTense = document.getElementById('tenseSelect').value;
             totalQuestions = parseInt(document.getElementById('questionCount').value) || 10;
+            missedQuestions = [];
 
-            // Generate quiz questions
             currentQuiz = [];
+            const uniqueVerbIndexes = new Set();
             for (let i = 0; i < totalQuestions; i++) {
-                const randomVerb = verbs[Math.floor(Math.random() * verbs.length)];
+                let randomIndex = Math.floor(Math.random() * verbs.length);
+                while (uniqueVerbIndexes.size < verbs.length && uniqueVerbIndexes.has(randomIndex) && currentQuiz.length < totalQuestions) {
+                    randomIndex = Math.floor(Math.random() * verbs.length);
+                }
+                if (currentQuiz.length < totalQuestions) {
+                    uniqueVerbIndexes.add(randomIndex);
+                }
+                const randomVerb = verbs[randomIndex];
                 const randomPronoun = pronouns[currentTense][Math.floor(Math.random() * pronouns[currentTense].length)];
                 currentQuiz.push({
                     verb: randomVerb,
@@ -577,14 +839,12 @@
             currentQuestionIndex = 0;
             score = 0;
 
-            // hide app header while in quiz
             document.getElementById('appHeader').style.display = 'none';
 
             document.getElementById('mainMenu').style.display = 'none';
             document.getElementById('quizSection').style.display = 'block';
             document.getElementById('currentTense').textContent = 'Current Tense: ' + tenseNames[currentTense];
 
-            // reset progress bar
             const pf = document.getElementById('progressFill');
             if (pf) pf.style.width = '0%';
 
@@ -675,6 +935,25 @@
                 document.getElementById('nextBtn').style.display = 'none';
             }
 
+            if (!isCorrect) {
+                const missedEntry = {
+                    pronoun: question.pronoun,
+                    verbBase: question.verb.base || question.verb.infinitive || question.verb.present || '',
+                    answer: question.answer,
+                    tense: currentTense
+                };
+
+                const existingMiss = missedQuestions.find(item =>
+                    item.pronoun === missedEntry.pronoun &&
+                    item.verbBase === missedEntry.verbBase &&
+                    item.answer === missedEntry.answer
+                );
+
+                if (!existingMiss) {
+                    missedQuestions.push(missedEntry);
+                }
+            }
+
             const infinitive = question.verb.infinitive || question.verb.base || question.verb.present || '';
             const infoUrl = `https://conjugator.reverso.net/conjugation-english-verb-${encodeURIComponent(infinitive.toLowerCase())}.html`;
             feedback.innerHTML = `
@@ -705,7 +984,6 @@
         }
 
         function showResults() {
-            // keep header hidden on results (only show on main menu)
             document.getElementById('appHeader').style.display = 'none';
 
             document.getElementById('quizSection').style.display = 'none';
@@ -729,8 +1007,17 @@
             }
             
             document.getElementById('scoreMessage').textContent = message;
+            renderResultsSummary();
+            renderMissedQuestions();
 
-            // fill progress bar to 100% on completion (if still visible)
+            saveRecentScore({
+                score: score,
+                total: totalQuestions,
+                percentage: percentage,
+                tenseLabel: tenseNames[currentTense],
+                timestamp: Date.now()
+            });
+
             const pf = document.getElementById('progressFill');
             if (pf) pf.style.width = '100%';
         }
@@ -749,23 +1036,24 @@
         }
 
         function backToMenu() {
-            // show header when returning to main menu
             document.getElementById('appHeader').style.display = 'block';
 
             document.getElementById('quizSection').style.display = 'none';
             document.getElementById('resultsSection').style.display = 'none';
             document.getElementById('mainMenu').style.display = 'block';
             document.getElementById('quitWarning').style.display = 'none';
+            document.getElementById('missedVerbsContainer').style.display = 'none';
             
-            // Reset quiz state
             currentQuiz = [];
             currentQuestionIndex = 0;
             score = 0;
+            missedQuestions = [];
         }
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             onSheetSelectChange();
+            renderRecentScores();
          });
 
         // Allow Enter key to submit answers
