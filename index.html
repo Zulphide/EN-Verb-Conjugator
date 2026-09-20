@@ -316,6 +316,46 @@
             color: #b3261e;
         }
 
+        .cursor-glow,
+        .click-ripple {
+            position: fixed;
+            pointer-events: none;
+            z-index: 2000;
+            border-radius: 50%;
+            opacity: 0;
+        }
+
+        .cursor-glow {
+            width: 34px;
+            height: 34px;
+            background: radial-gradient(circle, rgba(255, 197, 43, 0.28) 0%, rgba(0, 193, 126, 0) 72%);
+            transform: translate(-50%, -50%);
+            transition: opacity 180ms ease;
+        }
+
+        .click-ripple {
+            width: 12px;
+            height: 12px;
+            border: 2px solid #ffc52b;
+            transform: translate(-50%, -50%);
+            animation: click-ripple 500ms ease-out forwards;
+        }
+
+        body.custom-cursor-active .cursor-glow {
+            opacity: 1;
+        }
+
+        @keyframes click-ripple {
+            from {
+                opacity: 0.7;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            to {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(3.2);
+            }
+        }
+
         @media (max-width: 480px) {
             .container {
                 padding: 20px;
@@ -336,13 +376,13 @@
     <div class="container">
         <div id="appHeader">
             <h1 id="appTitle" style="color: #006853;">English Verb Conjugator</h1>
-            <h2 id="emojiHeading"></h2>
+            <h2 id="emojiHeading" title="v1.3 updates: first-attempt accuracy, clearer error reasons, class verb counts, and subtle cursor feedback."></h2>
         </div>
  
          <!-- Main Menu -->
         <div id="mainMenu" class="menu-section">
             <div class="input-group">
-                <label for="sheetSelect">Choose Your Class:</label>
+                <label for="sheetSelect">Choose Your Class: <span id="classVerbCount"></span></label>
                 <select id="sheetSelect" onchange="onSheetSelectChange()">
                     <option value="https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?gid=0&single=true&output=csv" selected>905</option>
                     <option value="https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?gid=370366080&single=true&output=csv">906</option>
@@ -424,6 +464,7 @@
         </div>
     </div>
 
+    <div class="cursor-glow" id="cursorGlow" aria-hidden="true"></div>
     <script>
         let verbs = [];
         let currentQuiz = [];
@@ -432,6 +473,8 @@
         let currentTense = 'present';
         let totalQuestions = 10;
         let currentAnswer = '';
+        let currentQuestionMissed = false;
+        let loadedSheetUrl = '';
         let missedQuestions = [];
         const RECENT_SCORES_KEY = 'enVerbConjugatorRecentScores';
 
@@ -527,20 +570,35 @@
             return '';
         }
 
-        function onSheetSelectChange() {
+        async function onSheetSelectChange() {
             const sheetSelect = document.getElementById('sheetSelect');
             const sheetUrlInput = document.getElementById('sheetUrl');
             const sheetUrlGroup = document.getElementById('sheetUrlGroup');
+            document.getElementById('classVerbCount').textContent = '';
             const val = sheetSelect.value;
             if (val === 'custom') {
                 sheetUrlInput.value = '';
                 sheetUrlInput.disabled = false;
                 sheetUrlGroup.style.display = '';
+                return;
             } else {
                 sheetUrlInput.value = val || DEFAULT_SHEET_URL;
                 sheetUrlInput.disabled = true;
                 sheetUrlGroup.style.display = 'none';
             }
+
+            await loadVerbs();
+        }
+
+        function updateSelectedClassLabel(verbCount) {
+            const sheetSelect = document.getElementById('sheetSelect');
+            const selectedOption = sheetSelect.options[sheetSelect.selectedIndex];
+            if (!selectedOption || selectedOption.value === 'custom') return;
+
+            const baseLabel = selectedOption.dataset.baseLabel || selectedOption.textContent.replace(/\s+\(\d+ verbs?\)$/, '');
+            selectedOption.dataset.baseLabel = baseLabel;
+            selectedOption.textContent = `${baseLabel} (${verbCount} verb${verbCount === 1 ? '' : 's'})`;
+            document.getElementById('classVerbCount').textContent = `(${verbCount} verb${verbCount === 1 ? '' : 's'})`;
         }
 
 
@@ -684,6 +742,8 @@
                     throw new Error('No valid verbs found in the sheet');
                 }
 
+                loadedSheetUrl = url;
+                updateSelectedClassLabel(verbs.length);
                 document.getElementById('loadingMessage').style.display = 'none';
                 return true;
 
@@ -762,15 +822,21 @@
             if (!container) return;
 
             const correctAnswers = score;
-            const incorrectAnswers = Math.max(totalQuestions - score, 0);
             const missedCount = missedQuestions.length;
             const accuracy = totalQuestions ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+            const reasonCounts = missedQuestions.reduce((counts, item) => {
+                counts[item.reason] = (counts[item.reason] || 0) + 1;
+                return counts;
+            }, {});
+            const reviewFocus = Object.entries(reasonCounts)
+                .map(([reason, count]) => `${reason} (${count})`)
+                .join(', ');
 
             const cards = [
                 { label: 'Correct', value: `${correctAnswers}/${totalQuestions}`, className: 'value' },
                 { label: 'Accuracy', value: `${accuracy}%`, className: accuracy >= 70 ? 'value' : accuracy >= 40 ? 'value warning' : 'value danger' },
                 { label: 'Missed', value: String(missedCount), className: missedCount === 0 ? 'value' : 'value warning' },
-                { label: 'Review focus', value: missedCount === 0 ? 'Great job' : `${missedCount} verbs`, className: missedCount === 0 ? 'value' : 'value danger' }
+                { label: 'Review focus', value: missedCount === 0 ? 'Great job' : reviewFocus, className: missedCount === 0 ? 'value' : 'value danger' }
             ];
 
             container.innerHTML = cards.map((card) => `
@@ -796,8 +862,7 @@
                 const infoUrl = `https://conjugator.reverso.net/conjugation-english-verb-${encodeURIComponent(infinitive.toLowerCase())}.html`;
                 return `
                     <li class="missed-item">
-                        <strong>${escapeHtml(item.pronoun)} ${escapeHtml(item.verbBase)}</strong>
-                        <div><small>Correct: ${escapeHtml(item.answer)}</small></div>
+                        <strong>${escapeHtml(item.pronoun)} ${escapeHtml(item.answer)}.</strong>
                         <div><small><a href="${infoUrl}" target="_blank" rel="noopener noreferrer">Review this verb</a></small></div>
                     </li>
                 `;
@@ -808,7 +873,8 @@
         }
 
         async function startQuiz() {
-            if (verbs.length === 0) {
+            const selectedSheetUrl = document.getElementById('sheetUrl').value.trim();
+            if (verbs.length === 0 || loadedSheetUrl !== selectedSheetUrl) {
                 const loaded = await loadVerbs();
                 if (!loaded) return;
             }
@@ -862,8 +928,11 @@
             document.getElementById('answerInput').focus();
             document.getElementById('feedback').style.display = 'none';
             document.getElementById('nextBtn').style.display = 'none';
-            document.getElementById('submitBtn').disabled = true;
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submit Answer';
             currentAnswer = question.answer;
+            currentQuestionMissed = false;
 
             // update progress bar: completed questions proportion
             const pf = document.getElementById('progressFill');
@@ -897,6 +966,24 @@
             return phraseRegex.test(normalized);
         }
 
+        function getSentenceFormatReason(answer, question, expected) {
+            const answerWithoutPunctuation = normalizeSentence(answer).replace(/[.!?]+$/, '');
+            const expectedWithoutPunctuation = normalizeSentence(expected).replace(/[.!?]+$/, '');
+            const answerSubject = answerWithoutPunctuation.split(' ')[0] || '';
+            const reasons = [];
+
+            if (!answer.trim().endsWith('.')) {
+                reasons.push('Missing punctuation');
+            }
+            if (answerSubject.toLowerCase() !== question.pronoun.toLowerCase()) {
+                reasons.push('Misspelled subject');
+            } else if (answerWithoutPunctuation !== expectedWithoutPunctuation) {
+                reasons.push('Mis-capitalization');
+            }
+
+            return reasons.join(' and ') || 'Missing punctuation';
+        }
+
         function checkAnswer() {
             const rawAnswer = document.getElementById('answerInput').value;
             const trimmedAnswer = rawAnswer.trim();
@@ -906,41 +993,55 @@
             const feedback = document.getElementById('feedback');
             let feedbackMsg = '';
             let isCorrect = false;
+            let incorrectReason = '';
 
             if (isFullSentenceAnswer(trimmedAnswer, expectedFullAnswer)) {
-                score++;
+                if (!currentQuestionMissed) {
+                    score++;
+                }
                 isCorrect = true;
-                feedbackMsg = '✅ Want to learn more?';
+                feedbackMsg = currentQuestionMissed
+                    ? '✅ Corrected, but this question remains missed.'
+                    : '✅ Want to learn more?';
                 feedback.className = 'feedback correct';
                 document.getElementById('answerInput').disabled = true;
                 document.getElementById('submitBtn').disabled = true;
                 document.getElementById('nextBtn').style.display = 'inline-block';
             } else if (isConjugationCorrect(trimmedAnswer, question)) {
-                feedbackMsg = expectedFullAnswer;
+                const reason = getSentenceFormatReason(trimmedAnswer, question, expectedFullAnswer);
+                incorrectReason = reason;
+                feedbackMsg = `<span title="${reason}">${reason}</span>: ${expectedFullAnswer}`;
                 feedback.className = 'feedback incorrect';
                 const answerInput = document.getElementById('answerInput');
                 answerInput.disabled = false;
                 answerInput.focus();
                 answerInput.select();
-                document.getElementById('submitBtn').disabled = true;
+                const submitBtn = document.getElementById('submitBtn');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Resubmit';
                 document.getElementById('nextBtn').style.display = 'none';
             } else {
-                feedbackMsg = expectedFullAnswer;
+                incorrectReason = 'Incorrect conjugation';
+                feedbackMsg = `<span title="Incorrect conjugation">Incorrect conjugation</span>: ${expectedFullAnswer}`;
                 feedback.className = 'feedback incorrect';
                 const answerInput = document.getElementById('answerInput');
                 answerInput.disabled = false;
                 answerInput.focus();
                 answerInput.select();
-                document.getElementById('submitBtn').disabled = true;
+                const submitBtn = document.getElementById('submitBtn');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Resubmit';
                 document.getElementById('nextBtn').style.display = 'none';
             }
 
             if (!isCorrect) {
+                currentQuestionMissed = true;
                 const missedEntry = {
                     pronoun: question.pronoun,
                     verbBase: question.verb.base || question.verb.infinitive || question.verb.present || '',
                     answer: question.answer,
-                    tense: currentTense
+                    tense: currentTense,
+                    reason: incorrectReason
                 };
 
                 const existingMiss = missedQuestions.find(item =>
@@ -1050,10 +1151,45 @@
             missedQuestions = [];
         }
 
+        function initializeCursorEffects() {
+            const supportsPointer = window.matchMedia('(pointer: fine)').matches;
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (!supportsPointer || prefersReducedMotion) return;
+
+            const glow = document.getElementById('cursorGlow');
+            if (!glow) return;
+
+            document.addEventListener('pointermove', function(event) {
+                glow.style.opacity = '1';
+                glow.style.left = `${event.clientX}px`;
+                glow.style.top = `${event.clientY}px`;
+            });
+
+            document.addEventListener('pointerdown', function(event) {
+                const ripple = document.createElement('span');
+                ripple.className = 'click-ripple';
+                ripple.style.left = `${event.clientX}px`;
+                ripple.style.top = `${event.clientY}px`;
+                document.body.appendChild(ripple);
+                ripple.addEventListener('animationend', function() {
+                    ripple.remove();
+                }, { once: true });
+            });
+
+            document.addEventListener('pointerleave', function() {
+                glow.style.opacity = '0';
+            });
+
+            document.addEventListener('pointerenter', function() {
+                glow.style.opacity = '1';
+            });
+        }
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             onSheetSelectChange();
             renderRecentScores();
+            initializeCursorEffects();
          });
 
         // Allow Enter key to submit answers
@@ -1072,7 +1208,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             const emojis = ['📚', '📝', '🔤', '✏️', '🎲', '🧠', '💡', '🎓', '🤓', '🔎', '🦉', '📖', '🚀', '🌟', '💬'];
             const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-            document.getElementById('emojiHeading').textContent = 'v1.2 ' + randomEmoji;
+            document.getElementById('emojiHeading').textContent = 'v1.3 ' + randomEmoji;
         });
 
         // Enable/disable submit button based on input
