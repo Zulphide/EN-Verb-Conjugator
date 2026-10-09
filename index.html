@@ -114,6 +114,31 @@
             margin-bottom: 20px;
         }
 
+        /* Subtle 5s auto-advance countdown, drawn along the bottom edge of the Next button */
+        #nextBtn {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .auto-bar {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.35);
+            pointer-events: none;
+        }
+
+        .auto-fill {
+            display: block;
+            height: 100%;
+            width: 100%;
+            background: rgba(0, 104, 83, 0.65);
+            transform: scaleX(0);
+            transform-origin: left center;
+        }
+
         .quiz-container {
             display: none;
         }
@@ -429,7 +454,10 @@
                    autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
                    aria-label="Your answer">
             <button class="btn" id="submitBtn" onclick="checkAnswer()" disabled>Submit Answer</button>
-            <button class="btn" onclick="nextQuestion()" id="nextBtn" style="display: none;">Next Question</button>
+            <button class="btn" onclick="nextQuestion()" id="nextBtn" style="display: none;">
+                <span id="nextLabel">Next Question</span>
+                <span class="auto-bar" aria-hidden="true"><span class="auto-fill" id="autoFill"></span></span>
+            </button>
             <div id="feedback" class="feedback" style="display: none;" aria-live="polite"></div>
 
             <button class="btn btn-back" onclick="showQuitWarning()">← Back to Main Menu</button>
@@ -946,6 +974,7 @@
             const input = document.getElementById('answerInput');
 
             answered = false;
+            cancelAutoAdvance();
             document.getElementById('questionCounter').textContent = `Question ${currentQuestionIndex + 1} of ${totalQuestions}`;
             document.getElementById('question').innerHTML =
                 `<span class="pronoun">${escapeHtml(question.pronoun)}</span> <span class="verb-base">(${escapeHtml(verbBase)})</span>`;
@@ -1035,12 +1064,68 @@
 
             feedback.style.display = 'block';
             const nextBtn = document.getElementById('nextBtn');
-            nextBtn.textContent = currentQuestionIndex + 1 >= totalQuestions ? 'See Results' : 'Next Question';
+            document.getElementById('nextLabel').textContent =
+                currentQuestionIndex + 1 >= totalQuestions ? 'See Results' : 'Next Question';
             nextBtn.style.display = 'inline-block';
             nextBtn.focus();
+            startAutoAdvance();
+        }
+
+        /* ---------- Auto-advance (timed bar on the Next button) ---------- */
+
+        const AUTO_ADVANCE_MS = 5000;
+        const autoAdvance = { active: false, running: false, elapsed: 0, last: 0, raf: 0 };
+
+        function setAutoFill(progress) {
+            const fill = document.getElementById('autoFill');
+            if (fill) fill.style.transform = `scaleX(${progress})`;
+        }
+
+        function autoAdvanceTick(now) {
+            if (!autoAdvance.running) return;
+            autoAdvance.elapsed += now - autoAdvance.last;
+            autoAdvance.last = now;
+
+            const progress = Math.min(1, autoAdvance.elapsed / AUTO_ADVANCE_MS);
+            setAutoFill(progress);
+
+            if (progress >= 1) {
+                nextQuestion();   // cancels the timer itself
+                return;
+            }
+            autoAdvance.raf = requestAnimationFrame(autoAdvanceTick);
+        }
+
+        // Runs only while the quiz is waiting on Next, the quit dialog is closed, and the tab is visible.
+        function resumeAutoAdvance() {
+            if (!autoAdvance.active || autoAdvance.running) return;
+            if (document.hidden) return;
+            if (document.getElementById('quitWarningOverlay').style.display === 'flex') return;
+            autoAdvance.running = true;
+            autoAdvance.last = performance.now();
+            autoAdvance.raf = requestAnimationFrame(autoAdvanceTick);
+        }
+
+        function pauseAutoAdvance() {
+            autoAdvance.running = false;
+            cancelAnimationFrame(autoAdvance.raf);
+        }
+
+        function startAutoAdvance() {
+            cancelAutoAdvance();
+            autoAdvance.active = true;
+            resumeAutoAdvance();
+        }
+
+        function cancelAutoAdvance() {
+            pauseAutoAdvance();
+            autoAdvance.active = false;
+            autoAdvance.elapsed = 0;
+            setAutoFill(0);
         }
 
         function nextQuestion() {
+            cancelAutoAdvance();
             currentQuestionIndex++;
             if (currentQuestionIndex >= totalQuestions) {
                 finishQuiz();
@@ -1093,6 +1178,7 @@
         }
 
         function quitQuiz() {
+            cancelAutoAdvance();
             currentQuiz = [];
             currentQuestionIndex = 0;
             score = 0;
@@ -1109,9 +1195,11 @@
             document.getElementById('quitWarningOverlay').style.display = 'none';
             const input = document.getElementById('answerInput');
             if (!input.disabled) input.focus();
+            resumeAutoAdvance();
         }
 
         function showQuitWarning() {
+            pauseAutoAdvance();
             document.getElementById('quitWarningOverlay').style.display = 'flex';
             document.getElementById('continueBtn').focus();
         }
@@ -1134,6 +1222,12 @@
 
             document.addEventListener('keydown', (event) => {
                 if (event.key === 'Escape') hideQuitWarning();
+            });
+
+            // Don't count down while the tab is in the background.
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) pauseAutoAdvance();
+                else resumeAutoAdvance();
             });
 
             // Subtle cursor feedback (fine pointers only, skipped for reduced motion).
