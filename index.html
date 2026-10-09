@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>English Verb Conjugator</title>
+    <link rel="icon" type="image/png" href="favicon.png">
     <style>
         * {
             margin: 0;
@@ -32,7 +33,7 @@
         }
 
         h1 {
-            color: #333;
+            color: #006853;
             margin-bottom: 10px;
             font-size: 2.5em;
             font-weight: 700;
@@ -88,9 +89,14 @@
             margin: 10px;
         }
 
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:focus-visible {
+            outline: 3px solid #006853;
+            outline-offset: 2px;
         }
 
         .btn:disabled {
@@ -114,7 +120,7 @@
 
         .question-counter {
             color: #666;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
             font-size: 1.1em;
         }
 
@@ -142,6 +148,11 @@
             font-size: 18px;
             margin-bottom: 20px;
             text-align: center;
+        }
+
+        .answer-input:focus {
+            outline: none;
+            border-color: #00C17E;
         }
 
         .feedback {
@@ -173,17 +184,9 @@
             color: #333;
         }
 
-        .score.excellent {
-            color: #28a745;
-        }
-
-        .score.good {
-            color: #ffc107;
-        }
-
-        .score.needs-improvement {
-            color: #dc3545;
-        }
+        .score.excellent { color: #28a745; }
+        .score.good { color: #b8860b; }
+        .score.needs-improvement { color: #dc3545; }
 
         .loading {
             color: #006853;
@@ -196,15 +199,6 @@
             padding: 15px;
             border-radius: 8px;
             margin: 20px 0;
-        }
-
-        .quit-warning {
-            background: #fff3cd;
-            color: #856404;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
-            border: 1px solid #ffeaa7;
         }
 
         .modal-overlay {
@@ -228,7 +222,6 @@
             min-width: 280px;
         }
 
-        /* thin progress bar (fits current color scheme) */
         .progress-bar {
             height: 8px;
             background: #eef9f2;
@@ -237,6 +230,7 @@
             margin-bottom: 12px;
             box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
         }
+
         .progress-fill {
             height: 100%;
             width: 0%;
@@ -250,7 +244,6 @@
             margin-top: 18px;
         }
 
-        .score-list,
         .missed-list {
             list-style: none;
             padding: 0;
@@ -300,6 +293,7 @@
             letter-spacing: 0.08em;
             color: #666;
             margin-bottom: 8px;
+            text-align: center;
         }
 
         .summary-card .value {
@@ -308,13 +302,12 @@
             color: #006853;
         }
 
-        .summary-card .value.warning {
-            color: #b86200;
+        .summary-card .value.small {
+            font-size: 1em;
         }
 
-        .summary-card .value.danger {
-            color: #b3261e;
-        }
+        .summary-card .value.warning { color: #b86200; }
+        .summary-card .value.danger { color: #b3261e; }
 
         .cursor-glow,
         .click-ripple {
@@ -356,15 +349,20 @@
             }
         }
 
+        @media (prefers-reduced-motion: reduce) {
+            .btn, .progress-fill { transition: none; }
+            .click-ripple { animation: none; display: none; }
+        }
+
         @media (max-width: 480px) {
             .container {
                 padding: 20px;
             }
-            
+
             h1 {
                 font-size: 2em;
             }
-            
+
             .btn {
                 padding: 12px 25px;
                 font-size: 14px;
@@ -375,11 +373,10 @@
 <body>
     <div class="container">
         <div id="appHeader">
-            <h1 id="appTitle" style="color: #006853;">English Verb Conjugator</h1>
-            <h2 id="emojiHeading" title="v1.3 updates: first-attempt accuracy, clearer error reasons, class verb counts, and subtle cursor feedback."></h2>
+            <h1 id="appTitle" title="v1.4: working submit/Enter key, accurate error reasons, phrasal-verb support, cleaner quiz selection.">English Verb Conjugator</h1>
         </div>
- 
-         <!-- Main Menu -->
+
+        <!-- Main Menu -->
         <div id="mainMenu" class="menu-section">
             <div class="input-group">
                 <label for="sheetSelect">Choose Your Class: <span id="classVerbCount"></span></label>
@@ -388,12 +385,12 @@
                     <option value="https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?gid=370366080&single=true&output=csv">907</option>
                     <option value="custom">Custom URL...</option>
                 </select>
-             </div>
-        <div class="input-group" id="sheetUrlGroup" style="display:none;">
-            <label for="sheetUrl">Google Sheets URL:</label>
-            <input type="url" id="sheetUrl" placeholder="paste your published CSV URL here...">
-        </div>
-            
+            </div>
+            <div class="input-group" id="sheetUrlGroup" style="display:none;">
+                <label for="sheetUrl">Google Sheets URL:</label>
+                <input type="url" id="sheetUrl" placeholder="paste your published CSV URL here...">
+            </div>
+
             <div class="input-group">
                 <label for="tenseSelect">Choose a Tense:</label>
                 <select id="tenseSelect">
@@ -406,49 +403,44 @@
                     <option value="past_perfect">Past Perfect</option>
                 </select>
             </div>
-            
+
             <div class="input-group">
                 <label for="questionCount">Number of Questions:</label>
                 <input type="number" id="questionCount" min="1" max="50" value="20">
             </div>
 
             <div id="recentScores" class="recent-scores" aria-live="polite"></div>
-            
-            <button class="btn" onclick="startQuiz()">Start Quiz</button>
+
+            <button class="btn" id="startBtn" onclick="startQuiz()">Start Quiz</button>
             <div id="loadingMessage" class="loading" style="display: none;">Loading verbs...</div>
-            <div id="errorMessage" class="error" style="display: none;"></div>
+            <div id="errorMessage" class="error" style="display: none;" role="alert"></div>
         </div>
 
         <!-- Quiz Section -->
         <div id="quizSection" class="quiz-container">
             <div class="tense-indicator" id="currentTense"></div>
-                        
-             <div id="quitWarning" class="quit-warning" style="display: none;">
-                 <p>Are you sure? Current progress will be lost.</p>
-                 <button class="btn btn-secondary" onclick="quitQuiz()">Yes, Quit</button>
-                 <button class="btn" onclick="hideQuitWarning()">Continue Quiz</button>
-             </div>
-            
+
             <div class="question-counter" id="questionCounter"></div>
-            <!-- thin progress bar showing current progress (moved below question counter) -->
             <div class="progress-bar" aria-hidden="true">
                 <div id="progressFill" class="progress-fill" style="width:0%"></div>
             </div>
-             <div class="question" id="question"></div>
-             <input type="text" id="answerInput" class="answer-input" placeholder="Write the full sentence.">
-             <button class="btn" id="submitBtn" onclick="checkAnswer()">Submit Answer</button>
-             <button class="btn" onclick="nextQuestion()" id="nextBtn" style="display: none;">Next Question</button>
-             <div id="feedback" class="feedback" style="display: none;"></div>
- 
-             <button class="btn btn-back" onclick="showQuitWarning()">← Back to Main Menu</button>
-         </div>       
+            <div class="question" id="question"></div>
+            <input type="text" id="answerInput" class="answer-input" placeholder="Write the full sentence."
+                   autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+                   aria-label="Your answer">
+            <button class="btn" id="submitBtn" onclick="checkAnswer()" disabled>Submit Answer</button>
+            <button class="btn" onclick="nextQuestion()" id="nextBtn" style="display: none;">Next Question</button>
+            <div id="feedback" class="feedback" style="display: none;" aria-live="polite"></div>
 
-            <!-- Modal Overlay for Quit Warning -->
-        <div id="quitWarningOverlay" class="modal-overlay" style="display: none;">
+            <button class="btn btn-back" onclick="showQuitWarning()">← Back to Main Menu</button>
+        </div>
+
+        <!-- Modal Overlay for Quit Warning -->
+        <div id="quitWarningOverlay" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-label="Quit quiz?">
             <div class="modal-content">
                 <p>Are you sure? Current progress will be lost.</p>
                 <button class="btn btn-secondary" onclick="quitQuiz()">Yes, Quit</button>
-                <button class="btn" onclick="hideQuitWarning()">Continue Quiz</button>
+                <button class="btn" id="continueBtn" onclick="hideQuitWarning()">Continue Quiz</button>
             </div>
         </div>
 
@@ -472,21 +464,16 @@
         let score = 0;
         let currentTense = 'present';
         let totalQuestions = 10;
-        let currentAnswer = '';
-        let currentQuestionMissed = false;
+        let answered = false;
         let loadedSheetUrl = '';
+        let loadToken = 0;
         let missedQuestions = [];
-        const RECENT_SCORES_KEY = 'enVerbConjugatorRecentScores';
 
-        const pronouns = {
-            present: ['I', 'You', 'He', 'She', 'It', 'We', 'They'],
-            past: ['I', 'You', 'He', 'She', 'It', 'We', 'They'],
-            future: ['I', 'You', 'He', 'She', 'It', 'We', 'They'],
-            present_continuous: ['I', 'You', 'He', 'She', 'It', 'We', 'They'],
-            past_continuous: ['I', 'You', 'He', 'She', 'It', 'We', 'They'],
-            present_perfect: ['I', 'You', 'He', 'She', 'It', 'We', 'They'],
-            past_perfect: ['I', 'You', 'He', 'She', 'It', 'We', 'They']
-        };
+        const RECENT_SCORES_KEY = 'enVerbConjugatorRecentScores';
+        const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?gid=0&single=true&output=csv";
+
+        const PRONOUNS = ['I', 'You', 'He', 'She', 'It', 'We', 'They'];
+        const THIRD_PERSON = ['He', 'She', 'It'];
 
         const tenseNames = {
             present: 'Present Tense',
@@ -498,7 +485,7 @@
             past_perfect: 'Past Perfect'
         };
 
-        const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?gid=0&single=true&output=csv";
+        /* ---------- CSV / sheet helpers ---------- */
 
         function normalizeHeader(value) {
             return String(value || '')
@@ -531,13 +518,9 @@
                     currentRow.push(currentCell);
                     currentCell = '';
                 } else if ((char === '\n' || char === '\r') && !inQuotes) {
-                    if (char === '\r' && nextChar === '\n') {
-                        i++;
-                    }
+                    if (char === '\r' && nextChar === '\n') i++;
                     currentRow.push(currentCell);
-                    if (currentRow.some(cell => String(cell).trim() !== '')) {
-                        rows.push(currentRow);
-                    }
+                    if (currentRow.some(cell => String(cell).trim() !== '')) rows.push(currentRow);
                     currentRow = [];
                     currentCell = '';
                 } else {
@@ -547,14 +530,13 @@
 
             if (currentCell.length > 0 || currentRow.length > 0) {
                 currentRow.push(currentCell);
-                if (currentRow.some(cell => String(cell).trim() !== '')) {
-                    rows.push(currentRow);
-                }
+                if (currentRow.some(cell => String(cell).trim() !== '')) rows.push(currentRow);
             }
 
             return rows;
         }
 
+        // Looks up a value by any of several header names, ignoring case/punctuation.
         function getVerbValue(verbObj, candidates) {
             const normalized = {};
             Object.keys(verbObj).forEach(key => {
@@ -562,12 +544,19 @@
             });
 
             for (const candidate of candidates) {
-                const loweredCandidate = normalizeHeader(candidate);
-                if (normalized[loweredCandidate] !== undefined) {
-                    return normalized[loweredCandidate];
-                }
+                const value = normalized[normalizeHeader(candidate)];
+                if (value !== undefined && value !== '') return value;
             }
             return '';
+        }
+
+        // Converts a Google Sheets "/edit" link into a CSV export link. Published CSV links pass through.
+        function toCsvUrl(url) {
+            const match = url.match(/^(https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/?#]+)\/edit(?:[^#]*)?(?:#.*gid=(\d+))?/);
+            if (match) {
+                return `${match[1]}/export?format=csv${match[2] ? '&gid=' + match[2] : ''}`;
+            }
+            return url;
         }
 
         async function onSheetSelectChange() {
@@ -575,31 +564,30 @@
             const sheetUrlInput = document.getElementById('sheetUrl');
             const sheetUrlGroup = document.getElementById('sheetUrlGroup');
             document.getElementById('classVerbCount').textContent = '';
-            const val = sheetSelect.value;
-            if (val === 'custom') {
+            document.getElementById('errorMessage').style.display = 'none';
+
+            if (sheetSelect.value === 'custom') {
                 sheetUrlInput.value = '';
                 sheetUrlInput.disabled = false;
                 sheetUrlGroup.style.display = '';
+                sheetUrlInput.focus();
                 return;
-            } else {
-                sheetUrlInput.value = val || DEFAULT_SHEET_URL;
-                sheetUrlInput.disabled = true;
-                sheetUrlGroup.style.display = 'none';
             }
+
+            sheetUrlInput.value = sheetSelect.value || DEFAULT_SHEET_URL;
+            sheetUrlInput.disabled = true;
+            sheetUrlGroup.style.display = 'none';
 
             await loadVerbs();
         }
 
         function updateSelectedClassLabel(verbCount) {
-            const sheetSelect = document.getElementById('sheetSelect');
-            const selectedOption = sheetSelect.options[sheetSelect.selectedIndex];
-            if (!selectedOption || selectedOption.value === 'custom') return;
-
-            const baseLabel = selectedOption.dataset.baseLabel || selectedOption.textContent.replace(/\s+\(\d+ verbs?\)$/, '');
-            selectedOption.dataset.baseLabel = baseLabel;
-            selectedOption.textContent = `${baseLabel} (${verbCount} verb${verbCount === 1 ? '' : 's'})`;
-            document.getElementById('classVerbCount').textContent = `(${verbCount} verb${verbCount === 1 ? '' : 's'})`;
+            if (document.getElementById('sheetSelect').value === 'custom') return;
+            document.getElementById('classVerbCount').textContent =
+                `(${verbCount} verb${verbCount === 1 ? '' : 's'})`;
         }
+
+        /* ---------- Conjugation ---------- */
 
         function normalizeVerbPhrase(rawValue) {
             return String(rawValue || '')
@@ -608,15 +596,10 @@
                 .replace(/\s+/g, ' ');
         }
 
+        // Splits "get up" into head "get" and rest "up" so endings go on the verb itself.
         function splitVerbPhrase(rawValue) {
-            const phrase = normalizeVerbPhrase(rawValue);
-            if (!phrase) return { head: '', rest: '' };
-
-            const parts = phrase.split(/\s+/);
-            return {
-                head: parts.shift() || '',
-                rest: parts.join(' ')
-            };
+            const parts = normalizeVerbPhrase(rawValue).split(' ').filter(Boolean);
+            return { head: parts.shift() || '', rest: parts.join(' ') };
         }
 
         function applyWordEndingToPhrase(phrase, transformWord) {
@@ -626,111 +609,94 @@
         }
 
         function thirdPersonForm(word) {
-            const value = String(word || '').trim();
-            if (!value) return '';
+            const lower = word.toLowerCase();
+            if (/[sxz]$/.test(lower) || /(sh|ch)$/.test(lower)) return word + 'es';
+            if (/[^aeiou]y$/.test(lower)) return word.slice(0, -1) + 'ies';
+            if (lower === 'go' || lower === 'do') return word + 'es';
+            return word + 's';
+        }
 
-            const lower = value.toLowerCase();
-            if (/[sxz]$/.test(lower) || /(sh|ch)$/.test(lower)) return value + 'es';
-            if (/[aeiou]y$/.test(lower)) return value + 's';
-            if (/y$/.test(lower)) return value.slice(0, -1) + 'ies';
-            return value + 's';
+        // One-syllable consonant-vowel-consonant words double the last letter (stop -> stopped).
+        // Longer words are ambiguous, so sheet-provided forms are preferred for those.
+        function doublesFinalConsonant(word) {
+            return /^[^aeiou]*[aeiou][^aeiouwxy]$/i.test(word);
         }
 
         function regularPastForm(word) {
-            const value = String(word || '').trim();
-            if (!value) return '';
-            if (/e$/i.test(value)) return value + 'd';
-            if (/y$/i.test(value) && !/[aeiou]y$/i.test(value)) return value.slice(0, -1) + 'ied';
-            return value + 'ed';
+            if (/e$/i.test(word)) return word + 'd';
+            if (/[^aeiou]y$/i.test(word)) return word.slice(0, -1) + 'ied';
+            if (doublesFinalConsonant(word)) return word + word.slice(-1) + 'ed';
+            return word + 'ed';
         }
 
         function presentParticipleForm(word) {
-            const value = String(word || '').trim();
-            if (!value) return '';
-            if (/e$/i.test(value) && !/ee$/i.test(value)) return value.slice(0, -1) + 'ing';
-            return value + 'ing';
+            if (/ie$/i.test(word)) return word.slice(0, -2) + 'ying';
+            if (/e$/i.test(word) && !/(ee|oe|ye)$/i.test(word)) return word.slice(0, -1) + 'ing';
+            if (doublesFinalConsonant(word)) return word + word.slice(-1) + 'ing';
+            return word + 'ing';
+        }
+
+        function beAux(pronoun, tense) {
+            const third = THIRD_PERSON.includes(pronoun);
+            if (tense === 'past') return (pronoun === 'I' || third) ? 'was' : 'were';
+            if (pronoun === 'I') return 'am';
+            return third ? 'is' : 'are';
+        }
+
+        function getBaseForm(verb) {
+            return normalizeVerbPhrase(getVerbValue(verb, ['base', 'infinitive', 'present', 'verb']));
         }
 
         function conjugateVerb(verb, pronoun, tense) {
-            // normalize base (remove leading "to " if present) and common forms
-            const rawBase = verb.base || verb.infinitive || verb.present || '';
-            const base = String(rawBase).trim().replace(/^to\s+/i, ''); // <-- strip leading "to "
-            const baseLower = base.toLowerCase();
+            const base = getBaseForm(verb);
+            const isBe = base.toLowerCase() === 'be';
+            const third = THIRD_PERSON.includes(pronoun);
 
-            const past = verb.past || verb['past simple'] || verb.past_simple || '';
-            const pastParticiple = verb['past participle'] || verb.pp || verb.past_participle || '';
-            const presentParticiple = verb['present participle'] || verb.ing || verb.present_participle || (base + 'ing');
+            // Sheet forms may hold the full phrase ("heated up") or only the main verb ("heated").
+            // Either way the particle ends up attached exactly once.
+            const { rest } = splitVerbPhrase(base);
+            const withRest = (form) => {
+                if (!form || !rest) return form;
+                return form.toLowerCase().endsWith(' ' + rest.toLowerCase()) ? form : form + ' ' + rest;
+            };
 
-            // helper for sheet-provided variants (headers were lowercased when parsed)
-            const presentThird = verb['present third'] || verb.present_third || verb['presentthird'] || verb.he_she_it || '';
+            // Sheet forms win; otherwise rules apply to the main verb only and the particle is rejoined unchanged.
+            const past = withRest(getVerbValue(verb, ['past', 'past simple', 'simple past', 'past tense']))
+                || applyWordEndingToPhrase(base, regularPastForm);
+            const pastParticiple = withRest(getVerbValue(verb, ['past participle', 'pp', 'participle', 'past part']))
+                || (isBe ? 'been' : '')
+                || past;
+            const presentParticiple = withRest(getVerbValue(verb, ['present participle', 'ing', 'gerund', 'ing form']))
+                || (isBe ? 'being' : applyWordEndingToPhrase(base, presentParticipleForm));
+            const presentThird = withRest(getVerbValue(verb, ['present third', 'third person', 'third person singular', 'he she it', 'present 3rd']))
+                || applyWordEndingToPhrase(base, thirdPersonForm);
 
-            // Special handling for "be" verb (works even if sheet had "to be")
-            if (baseLower === 'be') {
-                switch (tense) {
-                    case 'present':
-                        if (pronoun === 'I') return 'am';
-                        if (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') return 'is';
-                        return 'are';
-                    case 'past':
-                        if (pronoun === 'I' || pronoun === 'He' || pronoun === 'She' || pronoun === 'It') return 'was';
-                        return 'were';
-                    case 'future':
-                        return 'will be';
-                    case 'present_continuous':
-                        const bePresent = (pronoun === 'I') ? 'am' :
-                                          (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'is' : 'are';
-                        return bePresent + ' ' + presentParticiple;
-                    case 'past_continuous':
-                        const bePast = (pronoun === 'I' || pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'was' : 'were';
-                        return bePast + ' ' + presentParticiple;
-                    case 'present_perfect':
-                        const havePresent = (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'has' : 'have';
-                        return havePresent + ' been';
-                    case 'past_perfect':
-                        return 'had been';
-                    default:
-                        return base;
-                }
-            }
+            const have = third ? 'has' : 'have';
 
-            // Handle other irregular verbs / tenses
             switch (tense) {
                 case 'present':
-                    if (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') {
-                        return presentThird || thirdPersonForm(base);
-                    }
-                    return base;
+                    if (isBe) return beAux(pronoun, 'present');
+                    return third ? presentThird : base;
                 case 'past':
-                    return past || (base + 'ed');
+                    if (isBe) return beAux(pronoun, 'past');
+                    return past;
                 case 'future':
                     return 'will ' + base;
                 case 'present_continuous':
-                    const beP = (pronoun === 'I') ? 'am' :
-                                (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'is' : 'are';
-                    return beP + ' ' + presentParticiple;
+                    return beAux(pronoun, 'present') + ' ' + presentParticiple;
                 case 'past_continuous':
-                    const bePa = (pronoun === 'I' || pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'was' : 'were';
-                    return bePa + ' ' + presentParticiple;
+                    return beAux(pronoun, 'past') + ' ' + presentParticiple;
                 case 'present_perfect':
-                    const haveP = (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'has' : 'have';
-                    return haveP + ' ' + (pastParticiple || past || (base + 'ed'));
+                    return have + ' ' + pastParticiple;
                 case 'past_perfect':
-                    return 'had ' + (pastParticiple || past || (base + 'ed'));
+                    return 'had ' + pastParticiple;
                 default:
                     return base;
             }
-
-            // small helper for generating 3rd person when sheet doesn't provide it
-            function thirdPersonForm(b) {
-                if (!b) return '';
-                const lower = b.toLowerCase();
-                if (/[sxz]$/.test(lower) || /(sh|ch)$/.test(lower)) return b + 'es';
-                if (/[aeiou]y$/.test(lower)) return b + 's';
-                if (/y$/.test(lower)) return b.slice(0, -1) + 'ies';
-                return b + 's';
-            }
         }
-        
+
+        /* ---------- Loading ---------- */
+
         async function loadVerbs() {
             const url = document.getElementById('sheetUrl').value.trim();
             if (!url) {
@@ -738,67 +704,65 @@
                 return false;
             }
 
+            const myToken = ++loadToken;
+
             try {
                 document.getElementById('loadingMessage').style.display = 'block';
                 document.getElementById('errorMessage').style.display = 'none';
 
-                let csvUrl = url;
-                if (url.includes('/edit')) {
-                    csvUrl = url.replace('/edit#gid=', '/export?format=csv&gid=');
-                    csvUrl = url.includes('/edit#') ? url.replace('/edit#gid=', '/export?format=csv&gid=') : url.replace('/edit', '/export?format=csv');
+                let response;
+                try {
+                    response = await fetch(toCsvUrl(url));
+                } catch (networkError) {
+                    // fetch() only rejects when the request never completes (offline, blocked, CORS, sandboxed preview).
+                    throw new Error("Couldn't reach Google Sheets. Check your internet connection and that the sheet is published to the web as CSV. If you're viewing this in a preview window, it may block outside requests; try opening the page in a regular browser tab.");
                 }
-
-                const response = await fetch(csvUrl);
                 if (!response.ok) {
-                    throw new Error('Failed to fetch data from Google Sheets');
+                    throw new Error('Google Sheets returned an error (' + response.status + '). Check that the sheet is published to the web as CSV and the link is correct.');
                 }
 
-                const csvText = await response.text();
-                const rows = parseCsvText(csvText);
+                const rows = parseCsvText(await response.text());
                 if (rows.length < 2) {
-                    throw new Error('Sheet must have at least a header row and one data row');
+                    throw new Error('The sheet needs a header row and at least one verb row.');
                 }
+
+                // A newer load started while this one was in flight; discard this result.
+                if (myToken !== loadToken) return false;
 
                 const headers = rows[0].map(header => String(header).trim());
-                verbs = [];
+                const loaded = [];
 
                 for (let i = 1; i < rows.length; i++) {
-                    const values = rows[i];
                     const verbObj = {};
-
                     headers.forEach((header, index) => {
-                        const rawValue = values[index] || '';
-                        const cleanedValue = String(rawValue).trim();
-                        if (cleanedValue) {
-                            verbObj[header] = cleanedValue;
-                        }
+                        const cleanedValue = String(rows[i][index] || '').trim();
+                        if (header && cleanedValue) verbObj[header] = cleanedValue;
                     });
 
-                    const baseValue = getVerbValue(verbObj, ['base', 'infinitive', 'present', 'verb', 'word', 'english verb']);
-                    const normalizedBase = String(baseValue || '').trim();
-
-                    if (normalizedBase) {
-                        const canonicalVerb = { ...verbObj };
-                        canonicalVerb.base = canonicalVerb.base || normalizedBase;
-                        canonicalVerb.infinitive = canonicalVerb.infinitive || normalizedBase;
-                        canonicalVerb.present = canonicalVerb.present || normalizedBase;
-                        canonicalVerb.verb = canonicalVerb.verb || normalizedBase;
-                        verbs.push(canonicalVerb);
+                    const baseValue = normalizeVerbPhrase(
+                        getVerbValue(verbObj, ['base', 'infinitive', 'present', 'verb', 'word', 'english verb'])
+                    );
+                    if (baseValue) {
+                        verbObj.base = baseValue;
+                        loaded.push(verbObj);
                     }
                 }
 
-                if (verbs.length === 0) {
-                    throw new Error('No valid verbs found in the sheet');
+                if (loaded.length === 0) {
+                    throw new Error('No verbs found in the sheet. Check that it has a column named Base, Infinitive or Verb.');
                 }
 
+                verbs = loaded;
                 loadedSheetUrl = url;
                 updateSelectedClassLabel(verbs.length);
                 document.getElementById('loadingMessage').style.display = 'none';
                 return true;
 
             } catch (error) {
-                document.getElementById('loadingMessage').style.display = 'none';
-                showError('Error loading verbs: ' + error.message);
+                if (myToken === loadToken) {
+                    document.getElementById('loadingMessage').style.display = 'none';
+                    showError(error.message);
+                }
                 return false;
             }
         }
@@ -810,7 +774,7 @@
         }
 
         function escapeHtml(value) {
-            return String(value || '')
+            return String(value === undefined || value === null ? '' : value)
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
@@ -818,10 +782,13 @@
                 .replace(/'/g, '&#039;');
         }
 
+        /* ---------- Scores & results ---------- */
+
         function loadRecentScores() {
             try {
                 const raw = localStorage.getItem(RECENT_SCORES_KEY);
-                return raw ? JSON.parse(raw) : [];
+                const parsed = raw ? JSON.parse(raw) : [];
+                return Array.isArray(parsed) ? parsed : [];
             } catch (error) {
                 return [];
             }
@@ -831,10 +798,9 @@
             try {
                 const recentScores = loadRecentScores();
                 recentScores.unshift(entry);
-                const trimmedScores = recentScores.slice(0, 5);
-                localStorage.setItem(RECENT_SCORES_KEY, JSON.stringify(trimmedScores));
+                localStorage.setItem(RECENT_SCORES_KEY, JSON.stringify(recentScores.slice(0, 5)));
             } catch (error) {
-                // Ignore storage failures so the app keeps working when browser storage is unavailable.
+                // Storage can be unavailable (private mode, blocked); the app still works.
             }
             renderRecentScores();
         }
@@ -849,16 +815,13 @@
                 return;
             }
 
-            const html = recentScores.map((scoreEntry) => {
-                const dateLabel = new Date(scoreEntry.timestamp).toLocaleDateString([], {
-                    month: 'short',
-                    day: 'numeric'
-                });
+            const html = recentScores.map((entry) => {
+                const dateLabel = new Date(entry.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
                 return `
                     <div class="score-item">
-                        <strong>${escapeHtml(scoreEntry.score)} / ${escapeHtml(scoreEntry.total)}</strong>
+                        <strong>${escapeHtml(entry.score)} / ${escapeHtml(entry.total)}</strong>
                         <br>
-                        <small>${escapeHtml(scoreEntry.tenseLabel)} • ${escapeHtml(dateLabel)}</small>
+                        <small>${escapeHtml(entry.tenseLabel)} • ${escapeHtml(dateLabel)}</small>
                     </div>
                 `;
             }).join('');
@@ -870,9 +833,8 @@
             const container = document.getElementById('resultsSummary');
             if (!container) return;
 
-            const correctAnswers = score;
             const missedCount = missedQuestions.length;
-            const accuracy = totalQuestions ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+            const accuracy = totalQuestions ? Math.round((score / totalQuestions) * 100) : 0;
             const reasonCounts = missedQuestions.reduce((counts, item) => {
                 counts[item.reason] = (counts[item.reason] || 0) + 1;
                 return counts;
@@ -882,16 +844,16 @@
                 .join(', ');
 
             const cards = [
-                { label: 'Correct', value: `${correctAnswers}/${totalQuestions}`, className: 'value' },
+                { label: 'Correct', value: `${score}/${totalQuestions}`, className: 'value' },
                 { label: 'Accuracy', value: `${accuracy}%`, className: accuracy >= 70 ? 'value' : accuracy >= 40 ? 'value warning' : 'value danger' },
                 { label: 'Missed', value: String(missedCount), className: missedCount === 0 ? 'value' : 'value warning' },
-                { label: 'Review focus', value: missedCount === 0 ? 'Great job' : reviewFocus, className: missedCount === 0 ? 'value' : 'value danger' }
+                { label: 'Review focus', value: missedCount === 0 ? 'Great job' : reviewFocus, className: missedCount === 0 ? 'value small' : 'value small danger' }
             ];
 
             container.innerHTML = cards.map((card) => `
                 <div class="summary-card">
-                    <span class="label">${card.label}</span>
-                    <span class="${card.className}">${card.value}</span>
+                    <span class="label">${escapeHtml(card.label)}</span>
+                    <span class="${card.className}">${escapeHtml(card.value)}</span>
                 </div>
             `).join('');
         }
@@ -907,11 +869,11 @@
             }
 
             const listHtml = missedQuestions.map((item) => {
-                const infinitive = item.verbBase || 'verb';
-                const infoUrl = `https://conjugator.reverso.net/conjugation-english-verb-${encodeURIComponent(infinitive.toLowerCase())}.html`;
+                const infoUrl = `https://conjugator.reverso.net/conjugation-english-verb-${encodeURIComponent((item.verbBase || '').toLowerCase())}.html`;
                 return `
                     <li class="missed-item">
                         <strong>${escapeHtml(item.pronoun)} ${escapeHtml(item.answer)}.</strong>
+                        <div><small>You wrote: ${escapeHtml(item.given || '(blank)')} — ${escapeHtml(item.reason)}</small></div>
                         <div><small><a href="${infoUrl}" target="_blank" rel="noopener noreferrer">Review this verb</a></small></div>
                     </li>
                 `;
@@ -921,82 +883,87 @@
             container.style.display = 'block';
         }
 
+        /* ---------- Quiz flow ---------- */
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // Every verb appears once before any repeats, even if questions > verbs.
+        function pickVerbSequence(count) {
+            const sequence = [];
+            while (sequence.length < count) {
+                sequence.push(...shuffle(verbs.map((_, index) => index)));
+            }
+            return sequence.slice(0, count);
+        }
+
         async function startQuiz() {
-            const selectedSheetUrl = document.getElementById('sheetUrl').value.trim();
-            if (verbs.length === 0 || loadedSheetUrl !== selectedSheetUrl) {
-                const loaded = await loadVerbs();
-                if (!loaded) return;
-            }
-
-            currentTense = document.getElementById('tenseSelect').value;
-            totalQuestions = parseInt(document.getElementById('questionCount').value) || 10;
-            missedQuestions = [];
-
-            currentQuiz = [];
-            const uniqueVerbIndexes = new Set();
-            for (let i = 0; i < totalQuestions; i++) {
-                let randomIndex = Math.floor(Math.random() * verbs.length);
-                while (uniqueVerbIndexes.size < verbs.length && uniqueVerbIndexes.has(randomIndex) && currentQuiz.length < totalQuestions) {
-                    randomIndex = Math.floor(Math.random() * verbs.length);
+            const startBtn = document.getElementById('startBtn');
+            startBtn.disabled = true;
+            try {
+                const selectedSheetUrl = document.getElementById('sheetUrl').value.trim();
+                if (verbs.length === 0 || loadedSheetUrl !== selectedSheetUrl) {
+                    const loaded = await loadVerbs();
+                    if (!loaded) return;
                 }
-                if (currentQuiz.length < totalQuestions) {
-                    uniqueVerbIndexes.add(randomIndex);
-                }
-                const randomVerb = verbs[randomIndex];
-                const randomPronoun = pronouns[currentTense][Math.floor(Math.random() * pronouns[currentTense].length)];
-                currentQuiz.push({
-                    verb: randomVerb,
-                    pronoun: randomPronoun,
-                    answer: conjugateVerb(randomVerb, randomPronoun, currentTense)
+
+                currentTense = document.getElementById('tenseSelect').value;
+
+                const countInput = document.getElementById('questionCount');
+                totalQuestions = Math.min(50, Math.max(1, parseInt(countInput.value, 10) || 10));
+                countInput.value = totalQuestions;
+
+                missedQuestions = [];
+                currentQuiz = pickVerbSequence(totalQuestions).map((verbIndex) => {
+                    const verb = verbs[verbIndex];
+                    const pronoun = PRONOUNS[Math.floor(Math.random() * PRONOUNS.length)];
+                    return { verb, pronoun, answer: conjugateVerb(verb, pronoun, currentTense) };
                 });
+
+                currentQuestionIndex = 0;
+                score = 0;
+
+                document.getElementById('appHeader').style.display = 'none';
+                document.getElementById('mainMenu').style.display = 'none';
+                document.getElementById('quizSection').style.display = 'block';
+                document.getElementById('currentTense').textContent = 'Current Tense: ' + tenseNames[currentTense];
+                document.getElementById('progressFill').style.width = '0%';
+
+                showQuestion();
+            } finally {
+                startBtn.disabled = false;
             }
-
-            currentQuestionIndex = 0;
-            score = 0;
-
-            document.getElementById('appHeader').style.display = 'none';
-
-            document.getElementById('mainMenu').style.display = 'none';
-            document.getElementById('quizSection').style.display = 'block';
-            document.getElementById('currentTense').textContent = 'Current Tense: ' + tenseNames[currentTense];
-
-            const pf = document.getElementById('progressFill');
-            if (pf) pf.style.width = '0%';
-
-            showQuestion();
         }
 
         function showQuestion() {
-            document.getElementById('answerInput').disabled = false;
             const question = currentQuiz[currentQuestionIndex];
-            const verbBase = question.verb.base || question.verb.infinitive || question.verb.present || '';
+            const verbBase = getBaseForm(question.verb);
+            const input = document.getElementById('answerInput');
 
+            answered = false;
             document.getElementById('questionCounter').textContent = `Question ${currentQuestionIndex + 1} of ${totalQuestions}`;
-            document.getElementById('question').innerHTML = `<span class="pronoun">${question.pronoun}</span> <span class="verb-base">(${verbBase})</span>`;
-            document.getElementById('answerInput').value = '';
-            document.getElementById('answerInput').focus();
+            document.getElementById('question').innerHTML =
+                `<span class="pronoun">${escapeHtml(question.pronoun)}</span> <span class="verb-base">(${escapeHtml(verbBase)})</span>`;
+
+            input.disabled = false;
+            input.value = '';
+            input.focus();
+
             document.getElementById('feedback').style.display = 'none';
             document.getElementById('nextBtn').style.display = 'none';
-            const submitBtn = document.getElementById('submitBtn');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Submit Answer';
-            currentAnswer = question.answer;
-            currentQuestionMissed = false;
+            document.getElementById('submitBtn').disabled = true;
 
-            // update progress bar: completed questions proportion
-            const pf = document.getElementById('progressFill');
-            if (pf && totalQuestions > 0) {
-                const percent = Math.round((currentQuestionIndex / totalQuestions) * 100);
-                pf.style.width = percent + '%';
-            }
+            document.getElementById('progressFill').style.width =
+                Math.round((currentQuestionIndex / totalQuestions) * 100) + '%';
         }
 
         function normalizeSentence(sentence) {
             return sentence.trim().replace(/\s+/g, ' ');
-        }
-
-        function escapeRegExp(string) {
-            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         }
 
         function getExpectedFullSentence(question) {
@@ -1004,79 +971,73 @@
         }
 
         function isFullSentenceAnswer(answer, expected) {
-            const trimmed = answer.trim();
-            return /^[A-Z]/.test(trimmed) && trimmed.endsWith('.') && normalizeSentence(trimmed) === normalizeSentence(expected);
+            return normalizeSentence(answer) === normalizeSentence(expected);
         }
 
-        function isConjugationCorrect(answer, question) {
-            const normalized = normalizeSentence(answer.toLowerCase()).replace(/\.$/, '');
-            const expectedPhrase = question.answer.toLowerCase();
-            const phraseRegex = new RegExp(`\\b${escapeRegExp(expectedPhrase)}\\b`, 'i');
-            return phraseRegex.test(normalized);
-        }
-
-        function getSentenceFormatReason(answer, question, expected) {
-            const answerWithoutPunctuation = normalizeSentence(answer).replace(/[.!?]+$/, '');
-            const expectedWithoutPunctuation = normalizeSentence(expected).replace(/[.!?]+$/, '');
-            const answerSubject = answerWithoutPunctuation.split(' ')[0] || '';
+        // Explains why an answer was wrong. Returns { reason, verbFormOk }.
+        function diagnoseAnswer(answer, question, expected) {
+            const given = normalizeSentence(answer);
+            const givenCore = given.replace(/[.!?]+$/, '');
+            const expectedCore = normalizeSentence(expected).replace(/[.!?]+$/, '');
+            const subject = givenCore.split(' ')[0] || '';
             const reasons = [];
 
-            if (!answer.trim().endsWith('.')) {
-                reasons.push('Missing punctuation');
-            }
-            if (answerSubject.toLowerCase() !== question.pronoun.toLowerCase()) {
-                reasons.push('Misspelled subject');
-            } else if (answerWithoutPunctuation !== expectedWithoutPunctuation) {
+            const subjectOk = subject.toLowerCase() === question.pronoun.toLowerCase();
+            const verbFormOk = givenCore.toLowerCase() === expectedCore.toLowerCase();
+
+            if (!subjectOk) {
+                reasons.push('Wrong subject');
+            } else if (!verbFormOk) {
+                reasons.push('Wrong verb form');
+            } else if (givenCore !== expectedCore) {
                 reasons.push('Mis-capitalization');
             }
+            if (!given.endsWith('.')) {
+                reasons.push('Missing punctuation');
+            }
 
-            return reasons.join(' and ') || 'Missing punctuation';
+            return { reason: reasons.join(' and ') || 'Incorrect answer', verbFormOk };
         }
 
         function checkAnswer() {
-            const rawAnswer = document.getElementById('answerInput').value;
-            const trimmedAnswer = rawAnswer.trim();
+            if (answered) return;
+
+            const input = document.getElementById('answerInput');
+            const rawAnswer = input.value;
+            if (!rawAnswer.trim()) return;
+
             const question = currentQuiz[currentQuestionIndex];
-            const expectedFullAnswer = getExpectedFullSentence(question);
-
+            const expected = getExpectedFullSentence(question);
             const feedback = document.getElementById('feedback');
-            let feedbackMsg = '';
-            let isCorrect = false;
-            let incorrectReason = '';
 
-            if (isFullSentenceAnswer(trimmedAnswer, expectedFullAnswer)) {
-                if (!currentQuestionMissed) {
-                    score++;
-                }
-                isCorrect = true;
-                feedbackMsg = 'Correct!';
+            answered = true;
+            input.disabled = true;
+            document.getElementById('submitBtn').disabled = true;
+
+            if (isFullSentenceAnswer(rawAnswer, expected)) {
+                score++;
+                feedback.textContent = 'Correct!';
                 feedback.className = 'feedback correct';
             } else {
-                incorrectReason = getSentenceFormatReason(trimmedAnswer, question, expectedFullAnswer);
-                feedbackMsg = `Incorrect. Expected: "${question.pronoun} ${question.answer}."`;
+                const { reason, verbFormOk } = diagnoseAnswer(rawAnswer, question, expected);
+                feedback.textContent = verbFormOk
+                    ? `Almost! ${reason}. Expected: "${expected}"`
+                    : `Incorrect (${reason}). Expected: "${expected}"`;
                 feedback.className = 'feedback incorrect';
-                if (isConjugationCorrect(trimmedAnswer, question)) {
-                    feedbackMsg = 'Almost! Check the wording or punctuation.';
-                }
-            }
-
-            feedback.textContent = feedbackMsg;
-            feedback.style.display = 'block';
-
-            if (isCorrect) {
-                document.getElementById('nextBtn').style.display = 'inline-block';
-                document.getElementById('submitBtn').disabled = true;
-            } else {
-                currentQuestionMissed = true;
                 missedQuestions.push({
                     pronoun: question.pronoun,
                     answer: question.answer,
-                    verbBase: question.verb.base || question.verb.infinitive || question.verb.present || '',
-                    reason: incorrectReason || 'Incorrect answer'
+                    verbBase: getBaseForm(question.verb),
+                    given: normalizeSentence(rawAnswer),
+                    reason
                 });
-                document.getElementById('nextBtn').style.display = 'inline-block';
-                document.getElementById('submitBtn').disabled = true;
             }
+
+            feedback.style.display = 'block';
+            const nextBtn = document.getElementById('nextBtn');
+            nextBtn.textContent = currentQuestionIndex + 1 >= totalQuestions ? 'See Results' : 'Next Question';
+            nextBtn.style.display = 'inline-block';
+            nextBtn.focus();
         }
 
         function nextQuestion() {
@@ -1085,13 +1046,14 @@
                 finishQuiz();
                 return;
             }
-
             showQuestion();
         }
 
         function finishQuiz() {
             document.getElementById('quizSection').style.display = 'none';
             document.getElementById('resultsSection').style.display = 'block';
+            document.getElementById('progressFill').style.width = '100%';
+            document.getElementById('resultsTense').textContent = tenseNames[currentTense];
 
             const accuracy = totalQuestions ? Math.round((score / totalQuestions) * 100) : 0;
             const finalScoreEl = document.getElementById('finalScore');
@@ -1135,28 +1097,68 @@
             currentQuestionIndex = 0;
             score = 0;
             missedQuestions = [];
+            answered = false;
             document.getElementById('quizSection').style.display = 'none';
-            document.getElementById('quitWarning').style.display = 'none';
             document.getElementById('quitWarningOverlay').style.display = 'none';
             document.getElementById('mainMenu').style.display = 'block';
             document.getElementById('appHeader').style.display = 'block';
+            renderRecentScores();
         }
 
         function hideQuitWarning() {
-            document.getElementById('quitWarning').style.display = 'none';
             document.getElementById('quitWarningOverlay').style.display = 'none';
+            const input = document.getElementById('answerInput');
+            if (!input.disabled) input.focus();
         }
 
         function showQuitWarning() {
-            document.getElementById('quitWarning').style.display = 'block';
             document.getElementById('quitWarningOverlay').style.display = 'flex';
+            document.getElementById('continueBtn').focus();
         }
+
+        /* ---------- Events ---------- */
 
         window.addEventListener('DOMContentLoaded', () => {
             renderRecentScores();
-            var defaultSheetInput = document.getElementById('sheetUrl');
-            defaultSheetInput.value = DEFAULT_SHEET_URL;
-            document.getElementById('sheetSelect').dispatchEvent(new Event('change'));
+
+            const input = document.getElementById('answerInput');
+            input.addEventListener('input', () => {
+                document.getElementById('submitBtn').disabled = answered || !input.value.trim();
+            });
+            input.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    checkAnswer();
+                }
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') hideQuitWarning();
+            });
+
+            // Subtle cursor feedback (fine pointers only, skipped for reduced motion).
+            const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (window.matchMedia('(pointer: fine)').matches && !reduceMotion) {
+                const glow = document.getElementById('cursorGlow');
+                document.addEventListener('mousemove', (event) => {
+                    glow.style.left = event.clientX + 'px';
+                    glow.style.top = event.clientY + 'px';
+                    document.body.classList.add('custom-cursor-active');
+                });
+                document.addEventListener('mouseleave', () => {
+                    document.body.classList.remove('custom-cursor-active');
+                });
+                document.addEventListener('click', (event) => {
+                    const ripple = document.createElement('div');
+                    ripple.className = 'click-ripple';
+                    ripple.style.left = event.clientX + 'px';
+                    ripple.style.top = event.clientY + 'px';
+                    document.body.appendChild(ripple);
+                    ripple.addEventListener('animationend', () => ripple.remove());
+                });
+            }
+
+            onSheetSelectChange();
         });
     </script>
 </body>
