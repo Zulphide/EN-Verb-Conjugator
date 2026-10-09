@@ -384,8 +384,8 @@
             <div class="input-group">
                 <label for="sheetSelect">Choose Your Class: <span id="classVerbCount"></span></label>
                 <select id="sheetSelect" onchange="onSheetSelectChange()">
-                    <option value="https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?gid=0&single=true&output=csv" selected>905</option>
-                    <option value="https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?gid=370366080&single=true&output=csv">906</option>
+                    <option value="https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?gid=0&single=true&output=csv" selected>Class 1</option>
+                    <option value="https://docs.google.com/spreadsheets/d/e/2PACX-1vSV9ECEeuvSF5IOJkK_KkIOZr1uXZWooiRvoWO13XcecekYCKynaqSNJIbqU10-rMMAYH14b4HyVaBD/pub?gid=370366080&single=true&output=csv">Class 2</option>
                     <option value="custom">Custom URL...</option>
                 </select>
              </div>
@@ -601,21 +601,66 @@
             document.getElementById('classVerbCount').textContent = `(${verbCount} verb${verbCount === 1 ? '' : 's'})`;
         }
 
+        function normalizeVerbPhrase(rawValue) {
+            return String(rawValue || '')
+                .trim()
+                .replace(/^to\s+/i, '')
+                .replace(/\s+/g, ' ');
+        }
+
+        function splitVerbPhrase(rawValue) {
+            const phrase = normalizeVerbPhrase(rawValue);
+            if (!phrase) return { head: '', rest: '' };
+
+            const parts = phrase.split(/\s+/);
+            return {
+                head: parts.shift() || '',
+                rest: parts.join(' ')
+            };
+        }
+
+        function applyWordEndingToPhrase(phrase, transformWord) {
+            const { head, rest } = splitVerbPhrase(phrase);
+            if (!head) return '';
+            return [transformWord(head), rest].filter(Boolean).join(' ');
+        }
+
+        function thirdPersonForm(word) {
+            const value = String(word || '').trim();
+            if (!value) return '';
+
+            const lower = value.toLowerCase();
+            if (/[sxz]$/.test(lower) || /(sh|ch)$/.test(lower)) return value + 'es';
+            if (/[aeiou]y$/.test(lower)) return value + 's';
+            if (/y$/.test(lower)) return value.slice(0, -1) + 'ies';
+            return value + 's';
+        }
+
+        function regularPastForm(word) {
+            const value = String(word || '').trim();
+            if (!value) return '';
+            if (/e$/i.test(value)) return value + 'd';
+            if (/y$/i.test(value) && !/[aeiou]y$/i.test(value)) return value.slice(0, -1) + 'ied';
+            return value + 'ed';
+        }
+
+        function presentParticipleForm(word) {
+            const value = String(word || '').trim();
+            if (!value) return '';
+            if (/e$/i.test(value) && !/ee$/i.test(value)) return value.slice(0, -1) + 'ing';
+            return value + 'ing';
+        }
 
         function conjugateVerb(verb, pronoun, tense) {
-            // normalize base (remove leading "to " if present) and common forms
             const rawBase = verb.base || verb.infinitive || verb.present || '';
-            const base = String(rawBase).trim().replace(/^to\s+/i, ''); // <-- strip leading "to "
+            const base = normalizeVerbPhrase(rawBase);
             const baseLower = base.toLowerCase();
 
-            const past = verb.past || verb['past simple'] || verb.past_simple || '';
-            const pastParticiple = verb['past participle'] || verb.pp || verb.past_participle || '';
-            const presentParticiple = verb['present participle'] || verb.ing || verb.present_participle || (base + 'ing');
+            const past = normalizeVerbPhrase(verb.past || verb['past simple'] || verb.past_simple || '');
+            const pastParticiple = normalizeVerbPhrase(verb['past participle'] || verb.pp || verb.past_participle || '');
+            const presentParticiple = normalizeVerbPhrase(verb['present participle'] || verb.ing || verb.present_participle || applyWordEndingToPhrase(base, presentParticipleForm));
+            const presentThird = normalizeVerbPhrase(verb['present third'] || verb.present_third || verb['presentthird'] || verb.he_she_it || '');
 
-            // helper for sheet-provided variants (headers were lowercased when parsed)
-            const presentThird = verb['present third'] || verb.present_third || verb['presentthird'] || verb.he_she_it || '';
-
-            // Special handling for "be" verb (works even if sheet had "to be")
             if (baseLower === 'be') {
                 switch (tense) {
                     case 'present':
@@ -627,16 +672,19 @@
                         return 'were';
                     case 'future':
                         return 'will be';
-                    case 'present_continuous':
+                    case 'present_continuous': {
                         const bePresent = (pronoun === 'I') ? 'am' :
                                           (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'is' : 'are';
-                        return bePresent + ' ' + presentParticiple;
-                    case 'past_continuous':
+                        return `${bePresent} ${presentParticiple || applyWordEndingToPhrase(base, presentParticipleForm)}`;
+                    }
+                    case 'past_continuous': {
                         const bePast = (pronoun === 'I' || pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'was' : 'were';
-                        return bePast + ' ' + presentParticiple;
-                    case 'present_perfect':
+                        return `${bePast} ${presentParticiple || applyWordEndingToPhrase(base, presentParticipleForm)}`;
+                    }
+                    case 'present_perfect': {
                         const havePresent = (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'has' : 'have';
-                        return havePresent + ' been';
+                        return `${havePresent} been`;
+                    }
                     case 'past_perfect':
                         return 'had been';
                     default:
@@ -644,41 +692,33 @@
                 }
             }
 
-            // Handle other irregular verbs / tenses
             switch (tense) {
                 case 'present':
                     if (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') {
-                        return presentThird || thirdPersonForm(base);
+                        return presentThird || applyWordEndingToPhrase(base, thirdPersonForm);
                     }
                     return base;
                 case 'past':
-                    return past || (base + 'ed');
+                    return past || applyWordEndingToPhrase(base, regularPastForm);
                 case 'future':
                     return 'will ' + base;
-                case 'present_continuous':
+                case 'present_continuous': {
                     const beP = (pronoun === 'I') ? 'am' :
                                 (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'is' : 'are';
-                    return beP + ' ' + presentParticiple;
-                case 'past_continuous':
+                    return `${beP} ${presentParticiple || applyWordEndingToPhrase(base, presentParticipleForm)}`;
+                }
+                case 'past_continuous': {
                     const bePa = (pronoun === 'I' || pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'was' : 'were';
-                    return bePa + ' ' + presentParticiple;
-                case 'present_perfect':
+                    return `${bePa} ${presentParticiple || applyWordEndingToPhrase(base, presentParticipleForm)}`;
+                }
+                case 'present_perfect': {
                     const haveP = (pronoun === 'He' || pronoun === 'She' || pronoun === 'It') ? 'has' : 'have';
-                    return haveP + ' ' + (pastParticiple || past || (base + 'ed'));
+                    return `${haveP} ${pastParticiple || past || applyWordEndingToPhrase(base, regularPastForm)}`;
+                }
                 case 'past_perfect':
-                    return 'had ' + (pastParticiple || past || (base + 'ed'));
+                    return `had ${pastParticiple || past || applyWordEndingToPhrase(base, regularPastForm)}`;
                 default:
                     return base;
-            }
-
-            // small helper for generating 3rd person when sheet doesn't provide it
-            function thirdPersonForm(b) {
-                if (!b) return '';
-                const lower = b.toLowerCase();
-                if (/[sxz]$/.test(lower) || /(sh|ch)$/.test(lower)) return b + 'es';
-                if (/[aeiou]y$/.test(lower)) return b + 's';
-                if (/y$/.test(lower)) return b.slice(0, -1) + 'ies';
-                return b + 's';
             }
         }
 
@@ -1000,228 +1040,115 @@
                     score++;
                 }
                 isCorrect = true;
-                feedbackMsg = currentQuestionMissed
-                    ? '✅ Corrected, but this question remains missed.'
-                    : '✅ Want to learn more?';
+                feedbackMsg = 'Correct!';
                 feedback.className = 'feedback correct';
-                document.getElementById('answerInput').disabled = true;
-                document.getElementById('submitBtn').disabled = true;
-                document.getElementById('nextBtn').style.display = 'inline-block';
-            } else if (isConjugationCorrect(trimmedAnswer, question)) {
-                const reason = getSentenceFormatReason(trimmedAnswer, question, expectedFullAnswer);
-                incorrectReason = reason;
-                feedbackMsg = `<span title="${reason}">${reason}</span>: ${expectedFullAnswer}`;
-                feedback.className = 'feedback incorrect';
-                const answerInput = document.getElementById('answerInput');
-                answerInput.disabled = false;
-                answerInput.focus();
-                answerInput.select();
-                const submitBtn = document.getElementById('submitBtn');
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Resubmit';
-                document.getElementById('nextBtn').style.display = 'none';
             } else {
-                incorrectReason = 'Incorrect conjugation';
-                feedbackMsg = `<span title="Incorrect conjugation">Incorrect conjugation</span>: ${expectedFullAnswer}`;
+                incorrectReason = getSentenceFormatReason(trimmedAnswer, question, expectedFullAnswer);
+                feedbackMsg = `Incorrect. Expected: "${question.pronoun} ${question.answer}."`;
                 feedback.className = 'feedback incorrect';
-                const answerInput = document.getElementById('answerInput');
-                answerInput.disabled = false;
-                answerInput.focus();
-                answerInput.select();
-                const submitBtn = document.getElementById('submitBtn');
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Resubmit';
-                document.getElementById('nextBtn').style.display = 'none';
-            }
-
-            if (!isCorrect) {
-                currentQuestionMissed = true;
-                const missedEntry = {
-                    pronoun: question.pronoun,
-                    verbBase: question.verb.base || question.verb.infinitive || question.verb.present || '',
-                    answer: question.answer,
-                    tense: currentTense,
-                    reason: incorrectReason
-                };
-
-                const existingMiss = missedQuestions.find(item =>
-                    item.pronoun === missedEntry.pronoun &&
-                    item.verbBase === missedEntry.verbBase &&
-                    item.answer === missedEntry.answer
-                );
-
-                if (!existingMiss) {
-                    missedQuestions.push(missedEntry);
+                if (isConjugationCorrect(trimmedAnswer, question)) {
+                    feedbackMsg = 'Almost! Check the wording or punctuation.';
                 }
             }
 
-            const infinitive = question.verb.infinitive || question.verb.base || question.verb.present || '';
-            const infoUrl = `https://conjugator.reverso.net/conjugation-english-verb-${encodeURIComponent(infinitive.toLowerCase())}.html`;
-            feedback.innerHTML = `
-                ${feedbackMsg}
-                <button 
-                    onclick="window.open('${infoUrl}', '_blank')" 
-                    title="See more conjugations"
-                    style="background:none;border:none;cursor:pointer;padding:0 0 0 8px;vertical-align:middle;">
-                    <span style="font-size:1.5em; color:#006853;">&#9432;</span>
-                </button>
-            `;
-
+            feedback.textContent = feedbackMsg;
             feedback.style.display = 'block';
-            if (!isCorrect) {
-                document.getElementById('answerInput').disabled = false;
+
+            if (isCorrect) {
+                document.getElementById('nextBtn').style.display = 'inline-block';
+                document.getElementById('submitBtn').disabled = true;
+            } else {
+                currentQuestionMissed = true;
+                missedQuestions.push({
+                    pronoun: question.pronoun,
+                    answer: question.answer,
+                    verbBase: question.verb.base || question.verb.infinitive || question.verb.present || '',
+                    reason: incorrectReason || 'Incorrect answer'
+                });
+                document.getElementById('nextBtn').style.display = 'inline-block';
+                document.getElementById('submitBtn').disabled = true;
             }
         }
 
         function nextQuestion() {
-            document.getElementById('answerInput').disabled = false;
             currentQuestionIndex++;
-            
-            if (currentQuestionIndex < totalQuestions) {
-                showQuestion();
-            } else {
-                showResults();
+            if (currentQuestionIndex >= totalQuestions) {
+                finishQuiz();
+                return;
             }
+
+            showQuestion();
         }
 
-        function showResults() {
-            document.getElementById('appHeader').style.display = 'none';
-
+        function finishQuiz() {
             document.getElementById('quizSection').style.display = 'none';
             document.getElementById('resultsSection').style.display = 'block';
-            document.getElementById('resultsTense').textContent = 'Completed Tense: ' + tenseNames[currentTense];
-            
-            const percentage = Math.round((score / totalQuestions) * 100);
-            const scoreDiv = document.getElementById('finalScore');
-            scoreDiv.textContent = `${score} / ${totalQuestions} (${percentage}%)`;
-            
-            let message = '';
-            if (percentage >= 90) {
-                scoreDiv.className = 'score excellent';
-                message = 'Excellent work! You have mastered this tense.';
-            } else if (percentage >= 70) {
-                scoreDiv.className = 'score good';
-                message = 'Good job! Keep practicing to improve further.';
+
+            const accuracy = totalQuestions ? Math.round((score / totalQuestions) * 100) : 0;
+            const finalScoreEl = document.getElementById('finalScore');
+            finalScoreEl.textContent = `${score}/${totalQuestions}`;
+            finalScoreEl.className = 'score';
+            if (accuracy >= 80) finalScoreEl.classList.add('excellent');
+            else if (accuracy >= 60) finalScoreEl.classList.add('good');
+            else finalScoreEl.classList.add('needs-improvement');
+
+            const message = document.getElementById('scoreMessage');
+            if (accuracy >= 80) {
+                message.textContent = 'Excellent work!';
+            } else if (accuracy >= 60) {
+                message.textContent = 'Nice job! Review the missed verbs below.';
             } else {
-                scoreDiv.className = 'score needs-improvement';
-                message = 'Keep practicing! You\'ll get better with time.';
+                message.textContent = 'Keep practicing — you can improve quickly.';
             }
-            
-            document.getElementById('scoreMessage').textContent = message;
+
             renderResultsSummary();
             renderMissedQuestions();
 
             saveRecentScore({
                 score: score,
                 total: totalQuestions,
-                percentage: percentage,
                 tenseLabel: tenseNames[currentTense],
-                timestamp: Date.now()
+                timestamp: new Date().toISOString()
             });
-
-            const pf = document.getElementById('progressFill');
-            if (pf) pf.style.width = '100%';
-        }
-
-        function showQuitWarning() {
-            document.getElementById('quitWarningOverlay').style.display = 'flex';
-        }
-
-        function hideQuitWarning() {
-            document.getElementById('quitWarningOverlay').style.display = 'none';
-        }
-
-        function quitQuiz() {
-            hideQuitWarning();
-            backToMenu();
         }
 
         function backToMenu() {
-            document.getElementById('appHeader').style.display = 'block';
-
-            document.getElementById('quizSection').style.display = 'none';
             document.getElementById('resultsSection').style.display = 'none';
             document.getElementById('mainMenu').style.display = 'block';
-            document.getElementById('quitWarning').style.display = 'none';
-            document.getElementById('missedVerbsContainer').style.display = 'none';
-            
+            document.getElementById('appHeader').style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('loadingMessage').style.display = 'none';
+            renderRecentScores();
+        }
+
+        function quitQuiz() {
             currentQuiz = [];
             currentQuestionIndex = 0;
             score = 0;
             missedQuestions = [];
+            document.getElementById('quizSection').style.display = 'none';
+            document.getElementById('quitWarning').style.display = 'none';
+            document.getElementById('quitWarningOverlay').style.display = 'none';
+            document.getElementById('mainMenu').style.display = 'block';
+            document.getElementById('appHeader').style.display = 'block';
         }
 
-        function initializeCursorEffects() {
-            const supportsPointer = window.matchMedia('(pointer: fine)').matches;
-            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            if (!supportsPointer || prefersReducedMotion) return;
-
-            const glow = document.getElementById('cursorGlow');
-            if (!glow) return;
-
-            document.addEventListener('pointermove', function(event) {
-                glow.style.opacity = '1';
-                glow.style.left = `${event.clientX}px`;
-                glow.style.top = `${event.clientY}px`;
-            });
-
-            document.addEventListener('pointerdown', function(event) {
-                const ripple = document.createElement('span');
-                ripple.className = 'click-ripple';
-                ripple.style.left = `${event.clientX}px`;
-                ripple.style.top = `${event.clientY}px`;
-                document.body.appendChild(ripple);
-                ripple.addEventListener('animationend', function() {
-                    ripple.remove();
-                }, { once: true });
-            });
-
-            document.addEventListener('pointerleave', function() {
-                glow.style.opacity = '0';
-            });
-
-            document.addEventListener('pointerenter', function() {
-                glow.style.opacity = '1';
-            });
+        function hideQuitWarning() {
+            document.getElementById('quitWarning').style.display = 'none';
+            document.getElementById('quitWarningOverlay').style.display = 'none';
         }
 
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            onSheetSelectChange();
+        function showQuitWarning() {
+            document.getElementById('quitWarning').style.display = 'block';
+            document.getElementById('quitWarningOverlay').style.display = 'flex';
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
             renderRecentScores();
-            initializeCursorEffects();
-         });
-
-        // Allow Enter key to submit answers
-        document.getElementById('answerInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && !document.getElementById('answerInput').disabled) {
-                checkAnswer();
-            }
+            var defaultSheetInput = document.getElementById('sheetUrl');
+            defaultSheetInput.value = DEFAULT_SHEET_URL;
+            document.getElementById('sheetSelect').dispatchEvent(new Event('change'));
         });
-
-        // Auto-focus on answer input when next question loads
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('answerInput').focus();
-        });
-
-        //random emoji for h2 heading
-        document.addEventListener('DOMContentLoaded', function() {
-            const emojis = ['📚', '📝', '🔤', '✏️', '🎲', '🧠', '💡', '🎓', '🤓', '🔎', '🦉', '📖', '🚀', '🌟', '💬'];
-            const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-            document.getElementById('emojiHeading').textContent = 'v1.3 ' + randomEmoji;
-        });
-
-        // Enable/disable submit button based on input
-        document.addEventListener('DOMContentLoaded', function() {
-            const answerInput = document.getElementById('answerInput');
-            const submitBtn = document.getElementById('submitBtn');
-            function toggleSubmitBtn() {
-                submitBtn.disabled = answerInput.value.trim() === '';
-            }
-            answerInput.addEventListener('input', toggleSubmitBtn);
-            toggleSubmitBtn(); // Set initial state
-        });
-
     </script>
 </body>
 </html>
